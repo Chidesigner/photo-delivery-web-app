@@ -3,9 +3,9 @@ module.exports = {
   content: [
     "./app/**/*.{ts,tsx}",
     "./pages/**/*.{ts,tsx}",
-    "./components/**/*.{ts,tsx}"
+    "./components/**/*.{ts,tsx}",
   ],
-  darkMode: "class", // allow dark/light toggle
+  darkMode: "class",
   theme: {
     extend: {},
   },

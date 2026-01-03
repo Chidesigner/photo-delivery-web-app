@@ -1,0 +1,13 @@
+{
+  "files.associations": {
+    "*.postcss": "postcss"
+  },
+
+  "css.validate": false,
+  "scss.validate": false,
+  "less.validate": false,
+
+  "tailwindCSS.experimental.classRegex": [
+    ["className=\"([^\"]*)\"", 1]
+  ]
+}
