@@ -1,59 +1,68 @@
 "use client"
 
-import { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Switch } from "@/components/ui/switch"
+
+const actions = [
+  {
+    title: "Create Gallery",
+    description: "Set up a new private gallery for a client",
+    href: "/admin/galleries",
+  },
+  {
+    title: "Upload Images",
+    description: "Upload and manage photos for existing galleries",
+    href: "/admin/galleries/upload",
+  },
+  {
+    title: "View Galleries",
+    description: "Browse, edit, and manage all client galleries",
+    href: "/admin/galleries/view",
+  },
+]
 
 export default function AdminDashboardPage() {
-  const [darkMode, setDarkMode] = useState(false)
-
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode)
-    if (!darkMode) {
-      document.documentElement.classList.add("dark")
-    } else {
-      document.documentElement.classList.remove("dark")
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-50 transition-colors">
-      <div className="max-w-6xl mx-auto p-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-12">
-          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-          <div className="flex items-center gap-4">
-            <span>Dark Mode</span>
-            <Switch checked={darkMode} onCheckedChange={toggleDarkMode} />
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Link href="/admin/galleries" className="block">
-            <Button className="w-full py-6 text-lg font-medium">
-              Create Gallery
-            </Button>
-          </Link>
-
-          <Link href="/admin/galleries/upload" className="block">
-            <Button className="w-full py-6 text-lg font-medium">
-              Upload Images
-            </Button>
-          </Link>
-
-          <Link href="/admin/galleries/view" className="block">
-            <Button className="w-full py-6 text-lg font-medium">
-              View Galleries
-            </Button>
-          </Link>
-        </div>
-
-        {/* Optional Info / Footer */}
-        <p className="mt-12 text-center text-sm text-muted-foreground">
-          This dashboard is for managing client galleries only.
+    <div className="space-y-10">
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-semibold tracking-tight">
+          Admin Dashboard
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Manage client galleries, uploads, and access from one place.
         </p>
+      </div>
+
+      {/* Actions */}
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {actions.map((action) => (
+          <Link
+            key={action.title}
+            href={action.href}
+            className="group rounded-xl border bg-card p-6 transition hover:shadow-md"
+          >
+            <div className="space-y-2">
+              <h2 className="text-lg font-medium">
+                {action.title}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {action.description}
+              </p>
+            </div>
+
+            <div className="mt-6">
+              <Button variant="secondary" className="w-full">
+                Open
+              </Button>
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      {/* Footer */}
+      <div className="pt-6 text-center text-sm text-muted-foreground">
+        This admin area is restricted to authorized users only.
       </div>
     </div>
   )

@@ -1,47 +1,41 @@
 "use client"
 
 import Link from "next/link"
-import { supabase } from "@/lib/supabase"
-
-import { Button } from "@/components/ui/button"
 
 export default function AdminDashboard() {
-  const logout = async () => {
-    await supabase.auth.signOut()
-    window.location.href = "/admin/login"
-  }
-
   return (
-    <div className="max-w-5xl mx-auto mt-16 px-4">
-      <div className="flex justify-between items-center mb-10">
-        <h1 className="text-3xl font-semibold">Admin Dashboard</h1>
-        <Button variant="outline" onClick={logout}>
-          Logout
-        </Button>
+    <div className="max-w-6xl mx-auto">
+      <div className="mb-10">
+        <h1 className="text-3xl font-bold tracking-tight">
+          Welcome back 👋
+        </h1>
+        <p className="text-muted-foreground mt-2">
+          Manage client galleries and deliver photos professionally.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Link
           href="/admin/galleries"
-          className="border rounded-lg p-6 hover:shadow transition"
+          className="group rounded-xl border bg-card p-6 shadow-sm transition-all hover:shadow-lg hover:-translate-y-1"
         >
-          <h2 className="text-xl font-semibold">📁 Galleries</h2>
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            📁 Client Galleries
+          </h2>
           <p className="text-muted-foreground mt-2">
-            Create and manage client galleries
+            Create, manage, and organize photo galleries for your clients.
+          </p>
+          <p className="mt-4 text-sm text-primary group-hover:underline">
+            Open →
           </p>
         </Link>
 
-        <div className="border rounded-lg p-6 opacity-50">
-          <h2 className="text-xl font-semibold">💰 Payments</h2>
+        <div className="rounded-xl border bg-card p-6 opacity-60">
+          <h2 className="text-xl font-semibold">
+            🎨 Custom Branding
+          </h2>
           <p className="text-muted-foreground mt-2">
-            Coming soon
-          </p>
-        </div>
-
-        <div className="border rounded-lg p-6 opacity-50">
-          <h2 className="text-xl font-semibold">📊 Analytics</h2>
-          <p className="text-muted-foreground mt-2">
-            Monthly income tracking
+            Coming soon — personalize your delivery experience.
           </p>
         </div>
       </div>

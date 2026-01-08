@@ -7,7 +7,18 @@
   "scss.validate": false,
   "less.validate": false,
 
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+
   "tailwindCSS.experimental.classRegex": [
-    ["className=\"([^\"]*)\"", 1]
-  ]
+    ["className=\"([^\"]*)\"", 1],
+    ["className=\\{`([^`]*)`\\}", 1],
+    ["cn\\(([^)]*)\\)", 1],
+    ["cva\\(([^)]*)\\)", 1]
+  ],
+
+  "tailwindCSS.includeLanguages": {
+    "typescript": "javascript",
+    "typescriptreact": "javascript"
+  }
 }

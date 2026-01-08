@@ -5,9 +5,5 @@ export default function AdminDashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  return (
-    <section className="p-6">
-      {children}
-    </section>
-  )
+  return <div className="max-w-7xl mx-auto">{children}</div>
 }

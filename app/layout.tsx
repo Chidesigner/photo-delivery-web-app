@@ -1,5 +1,10 @@
 import "./globals.css"
 
+export const metadata = {
+  title: "Photo Delivery App",
+  description: "Professional client photo delivery system",
+}
+
 export default function RootLayout({
   children,
 }: {
@@ -7,10 +12,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body
-        className="min-h-screen bg-background text-foreground"
-        suppressHydrationWarning
-      >
+      <body className="bg-background text-foreground min-h-screen">
         {children}
       </body>
     </html>
