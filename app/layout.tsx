@@ -2,7 +2,7 @@ import "./globals.css"
 import { Toaster } from "react-hot-toast"
 
 export const metadata = {
-  title: "Photo Delivery App",
+  title: "A2 Studios Photo Delivery",
   description: "Professional client photo delivery system",
 }
 
