@@ -93,9 +93,11 @@ export default function AdminGalleriesPage() {
       return
     }
 
+    const normalizedEmail = emailInput.toLowerCase() // <-- normalize
+
     const { error } = await supabase
       .from("galleries")
-      .update({ client_email: emailInput })
+      .update({ client_email: normalizedEmail })
       .eq("id", id)
 
     if (error) {
@@ -104,7 +106,7 @@ export default function AdminGalleriesPage() {
     }
 
     setGalleries((prev) =>
-      prev.map((g) => (g.id === id ? { ...g, client_email: emailInput } : g))
+      prev.map((g) => (g.id === id ? { ...g, client_email: normalizedEmail } : g))
     )
     setEditingId(null)
     toast.success("Email updated")
@@ -112,51 +114,50 @@ export default function AdminGalleriesPage() {
 
   /** Delete gallery + all storage files */
   const deleteGallery = async (galleryId: string) => {
-  toast(
-    (t) => (
-      <div className="flex flex-col gap-3">
-        <p className="font-medium">Delete this client gallery?</p>
-        <p className="text-sm text-muted-foreground">
-          This will permanently remove the gallery and all its photos.
-        </p>
+    toast(
+      (t) => (
+        <div className="flex flex-col gap-3">
+          <p className="font-medium">Delete this client gallery?</p>
+          <p className="text-sm text-muted-foreground">
+            This will permanently remove the gallery and all its photos.
+          </p>
 
-        <div className="flex justify-end gap-2">
-          <button
-            onClick={() => toast.dismiss(t.id)}
-            className="px-3 py-1 text-sm rounded-md border"
-          >
-            Cancel
-          </button>
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="px-3 py-1 text-sm rounded-md border"
+            >
+              Cancel
+            </button>
 
-          <button
-            onClick={async () => {
-              toast.dismiss(t.id)
+            <button
+              onClick={async () => {
+                toast.dismiss(t.id)
 
-              try {
-                const { error } = await supabase
-                  .from("galleries")
-                  .delete()
-                  .eq("id", galleryId)
+                try {
+                  const { error } = await supabase
+                    .from("galleries")
+                    .delete()
+                    .eq("id", galleryId)
 
-                if (error) throw error
+                  if (error) throw error
 
-                toast.success("Client gallery deleted successfully")
-                fetchGalleries() // or whatever function reloads your list
-              } catch (err: any) {
-                toast.error(err.message || "Failed to delete gallery")
-              }
-            }}
-            className="px-3 py-1 text-sm rounded-md bg-red-600 text-white hover:bg-red-700"
-          >
-            Delete
-          </button>
+                  toast.success("Client gallery deleted successfully")
+                  fetchGalleries() // reload list
+                } catch (err: any) {
+                  toast.error(err.message || "Failed to delete gallery")
+                }
+              }}
+              className="px-3 py-1 text-sm rounded-md bg-red-600 text-white hover:bg-red-700"
+            >
+              Delete
+            </button>
+          </div>
         </div>
-      </div>
-    ),
-    { duration: 6000 }
-  )
-}
-
+      ),
+      { duration: 6000 }
+    )
+  }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()

@@ -62,7 +62,7 @@ export default function AdminGalleryUploadPage() {
 
     const { data, error } = await supabase
       .from("photos")
-      .select("id, name, image_url, public_id") // ✅ include public_id
+      .select("id, name, image_url, public_id")
       .eq("gallery_id", galleryId)
       .order("created_at", { ascending: false });
 
@@ -113,6 +113,7 @@ export default function AdminGalleryUploadPage() {
       try {
         const formData = new FormData();
         formData.append("file", item.file);
+        formData.append("galleryId", galleryId); // ✅ Add galleryId for Cloudinary folder
 
         const res = await fetch("/api/upload-photo", {
           method: "POST",
@@ -130,7 +131,7 @@ export default function AdminGalleryUploadPage() {
         const publicUrl = data.url;
         const publicId = data.public_id;
 
-        // 3️⃣ Insert into database (Cloudinary version)
+        // ✅ Save Cloudinary info in DB
         const { error: dbError } = await supabase.from("photos").insert({
           gallery_id: galleryId,
           name: item.file.name,
@@ -182,7 +183,10 @@ export default function AdminGalleryUploadPage() {
                   });
 
                   const cloudData = await cloudRes.json();
-                  if (!cloudRes.ok) throw new Error(cloudData.error || "Failed to delete photo from Cloudinary");
+                  if (!cloudRes.ok)
+                    throw new Error(
+                      cloudData.error || "Failed to delete photo from Cloudinary"
+                    );
                 }
 
                 // Delete from DB

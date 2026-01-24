@@ -1,39 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
+import cloudinary from "@/lib/cloudinary";
+import { supabase } from "@/lib/supabase";
 
 export async function POST(req: NextRequest) {
   try {
-    const { public_id } = await req.json();
+    const { public_id, photoId } = await req.json();
 
-    if (!public_id) return NextResponse.json({ error: "Missing public_id" }, { status: 400 });
+    if (!public_id || !photoId) {
+      return NextResponse.json(
+        { error: "Missing public_id or photoId" },
+        { status: 400 }
+      );
+    }
 
-    const cloudName = process.env.CLOUDINARY_CLOUD_NAME!;
-    const apiKey = process.env.CLOUDINARY_API_KEY!;
-    const apiSecret = process.env.CLOUDINARY_API_SECRET!;
+    // Delete from Cloudinary
+    const result = await cloudinary.uploader.destroy(public_id);
 
-    const auth = Buffer.from(`${apiKey}:${apiSecret}`).toString("base64");
+    if (result.result !== "ok") {
+      console.error("Cloudinary deletion failed:", result);
+      return NextResponse.json(
+        { error: "Failed to delete image from Cloudinary", result },
+        { status: 500 }
+      );
+    }
 
-    const formData = new URLSearchParams();
-    formData.append("public_id", public_id);
+    // Delete from Supabase
+    const { error } = await supabase.from("photos").delete().eq("id", photoId);
 
-    const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${cloudName}/image/destroy`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Basic ${auth}`,
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: formData.toString(),
-      }
-    );
-
-    const data = await response.json();
-
-    if (data.result !== "ok") return NextResponse.json({ error: "Failed to delete image", data }, { status: 500 });
+    if (error) {
+      console.error("Supabase deletion failed:", error);
+      return NextResponse.json(
+        { error: "Failed to delete photo from database" },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    console.error(err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("Delete photo error:", err);
+    return NextResponse.json({ error: err.message || "Deletion failed" }, { status: 500 });
   }
 }
