@@ -18,12 +18,13 @@ type ExistingPhoto = {
   id: string;
   name: string;
   image_url: string;
+  public_id?: string; // ✅ Cloudinary public_id
 };
 
 type GalleryInfo = {
   event_name: string;
   client_email: string;
-  event_date: string | null; // ✅ NEW
+  event_date: string | null;
 };
 
 export default function AdminGalleryUploadPage() {
@@ -43,7 +44,7 @@ export default function AdminGalleryUploadPage() {
     const loadGallery = async () => {
       const { data, error } = await supabase
         .from("galleries")
-        .select("event_name, client_email, event_date") // ✅ include event_date
+        .select("event_name, client_email, event_date")
         .eq("id", galleryId)
         .single();
 
@@ -61,7 +62,7 @@ export default function AdminGalleryUploadPage() {
 
     const { data, error } = await supabase
       .from("photos")
-      .select("id, name, image_url")
+      .select("id, name, image_url, public_id") // ✅ include public_id
       .eq("gallery_id", galleryId)
       .order("created_at", { ascending: false });
 
@@ -98,7 +99,7 @@ export default function AdminGalleryUploadPage() {
   };
 
   /* ----------------------------------
-     Upload images (Storage + DB)
+     Upload images to Cloudinary + DB
   ---------------------------------- */
   const uploadImages = async () => {
     if (files.length === 0) {
@@ -109,37 +110,41 @@ export default function AdminGalleryUploadPage() {
     setLoading(true);
 
     for (const item of files) {
-      const filePath = `${galleryId}/${Date.now()}-${item.file.name}`;
+      try {
+        const formData = new FormData();
+        formData.append("file", item.file);
 
-      // 1️⃣ Upload to storage
-      const { error: uploadError } = await supabase.storage
-        .from("Photo-Delivery-Storage")
-        .upload(filePath, item.file);
+        const res = await fetch("/api/upload-photo", {
+          method: "POST",
+          body: formData,
+        });
 
-      if (uploadError) {
-        console.error(uploadError);
+        const data = await res.json();
+
+        if (!res.ok) {
+          toast.error(`Failed to upload ${item.file.name}`);
+          setLoading(false);
+          return;
+        }
+
+        const publicUrl = data.url;
+        const publicId = data.public_id;
+
+        // 3️⃣ Insert into database (Cloudinary version)
+        const { error: dbError } = await supabase.from("photos").insert({
+          gallery_id: galleryId,
+          name: item.file.name,
+          image_url: publicUrl,
+          public_id: publicId,
+        });
+
+        if (dbError) {
+          console.error(dbError);
+          toast.error(`Uploaded but failed to save record: ${item.file.name}`);
+        }
+      } catch (err: any) {
+        console.error(err);
         toast.error(`Failed to upload ${item.file.name}`);
-        setLoading(false);
-        return;
-      }
-
-      // 2️⃣ Get public URL
-      const { data: publicUrlData } = supabase.storage
-        .from("Photo-Delivery-Storage")
-        .getPublicUrl(filePath);
-
-      const publicUrl = publicUrlData.publicUrl;
-
-      // 3️⃣ Insert into database
-      const { error: dbError } = await supabase.from("photos").insert({
-        gallery_id: galleryId,
-        name: item.file.name,
-        image_url: publicUrl,
-      });
-
-      if (dbError) {
-        console.error(dbError);
-        toast.error(`Uploaded but failed to save record: ${item.file.name}`);
       }
     }
 
@@ -150,9 +155,9 @@ export default function AdminGalleryUploadPage() {
   };
 
   /* ----------------------------------
-     Delete photo (Storage + DB)
+     Delete photo from Cloudinary + DB
   ---------------------------------- */
-  const deletePhoto = async (photoId: string) => {
+  const deletePhoto = async (photoId: string, publicId?: string) => {
     toast((t) => (
       <div className="flex flex-col gap-3">
         <p>Delete this photo permanently?</p>
@@ -168,24 +173,19 @@ export default function AdminGalleryUploadPage() {
               toast.dismiss(t.id);
 
               try {
-                const { data: photo, error: fetchError } = await supabase
-                  .from("photos")
-                  .select("image_url")
-                  .eq("id", photoId)
-                  .single();
+                // Delete from Cloudinary
+                if (publicId) {
+                  const cloudRes = await fetch("/api/delete-photo", {
+                    method: "POST",
+                    body: JSON.stringify({ public_id: publicId }),
+                    headers: { "Content-Type": "application/json" },
+                  });
 
-                if (fetchError || !photo) throw new Error("Photo not found");
+                  const cloudData = await cloudRes.json();
+                  if (!cloudRes.ok) throw new Error(cloudData.error || "Failed to delete photo from Cloudinary");
+                }
 
-                const path = decodeURIComponent(
-                  photo.image_url.split("/Photo-Delivery-Storage/")[1]
-                );
-
-                const { error: storageError } = await supabase.storage
-                  .from("Photo-Delivery-Storage")
-                  .remove([path]);
-
-                if (storageError) throw storageError;
-
+                // Delete from DB
                 const { error: dbError } = await supabase
                   .from("photos")
                   .delete()
@@ -336,7 +336,7 @@ export default function AdminGalleryUploadPage() {
                     />
                   </div>
                   <button
-                    onClick={() => deletePhoto(photo.id)}
+                    onClick={() => deletePhoto(photo.id, photo.public_id)}
                     className="absolute top-2 right-2 rounded-full bg-red-600 text-white text-xs px-2 py-1 opacity-0 group-hover:opacity-100 transition"
                   >
                     <TrashIcon className="w-3 h-3" />
