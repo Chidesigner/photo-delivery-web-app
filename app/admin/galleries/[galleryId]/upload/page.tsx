@@ -156,9 +156,9 @@ export default function AdminGalleryUploadPage() {
   };
 
   /* ----------------------------------
-     Delete photo from Cloudinary + DB
-  ---------------------------------- */
-  const deletePhoto = async (photoId: string, publicId?: string) => {
+   Delete photo from Cloudinary + DB
+---------------------------------- */
+const deletePhoto = async (photoId: string, publicId?: string) => {
   toast((t) => (
     <div className="flex flex-col gap-3">
       <p>Delete this photo permanently?</p>
@@ -174,8 +174,12 @@ export default function AdminGalleryUploadPage() {
             toast.dismiss(t.id);
 
             try {
+              console.log("🗑️ Deleting photo:", { photoId, publicId }); // ← DEBUG
+
               // Delete from Cloudinary
               if (publicId) {
+                console.log("📤 Sending delete request to API..."); // ← DEBUG
+
                 const cloudRes = await fetch("/api/delete-photo", {
                   method: "POST",
                   body: JSON.stringify({ public_id: publicId }),
@@ -183,16 +187,22 @@ export default function AdminGalleryUploadPage() {
                 });
 
                 const cloudData = await cloudRes.json();
+                console.log("📥 API Response:", cloudRes.status, cloudData); // ← DEBUG
                 
                 if (!cloudRes.ok) {
-                  console.error("Cloudinary delete error:", cloudData);
+                  console.error("❌ Cloudinary delete error:", cloudData); // ← DEBUG
                   throw new Error(
                     cloudData.error || "Failed to delete photo from Cloudinary"
                   );
                 }
+
+                console.log("✅ Cloudinary delete successful"); // ← DEBUG
+              } else {
+                console.log("⚠️ No public_id, skipping Cloudinary delete"); // ← DEBUG
               }
 
               // Delete from DB
+              console.log("🗄️ Deleting from database..."); // ← DEBUG
               const { error: dbError } = await supabase
                 .from("photos")
                 .delete()
@@ -203,7 +213,7 @@ export default function AdminGalleryUploadPage() {
               toast.success("Photo deleted successfully ✅");
               fetchPhotos();
             } catch (err: any) {
-              console.error("Delete error:", err);
+              console.error("🔴 Full delete error:", err); // ← DEBUG
               toast.error(err.message || "Failed to delete photo");
             }
           }}
