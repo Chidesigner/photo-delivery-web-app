@@ -159,58 +159,62 @@ export default function AdminGalleryUploadPage() {
      Delete photo from Cloudinary + DB
   ---------------------------------- */
   const deletePhoto = async (photoId: string, publicId?: string) => {
-    toast((t) => (
-      <div className="flex flex-col gap-3">
-        <p>Delete this photo permanently?</p>
-        <div className="flex justify-end gap-2">
-          <button
-            onClick={() => toast.dismiss(t.id)}
-            className="px-3 py-1 text-sm rounded-md border"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={async () => {
-              toast.dismiss(t.id);
+  toast((t) => (
+    <div className="flex flex-col gap-3">
+      <p>Delete this photo permanently?</p>
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={() => toast.dismiss(t.id)}
+          className="px-3 py-1 text-sm rounded-md border"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={async () => {
+            toast.dismiss(t.id);
 
-              try {
-                // Delete from Cloudinary
-                if (publicId) {
-                  const cloudRes = await fetch("/api/delete-photo", {
-                    method: "POST",
-                    body: JSON.stringify({ public_id: publicId }),
-                    headers: { "Content-Type": "application/json" },
-                  });
+            try {
+              // Delete from Cloudinary
+              if (publicId) {
+                const cloudRes = await fetch("/api/delete-photo", {
+                  method: "POST",
+                  body: JSON.stringify({ public_id: publicId }),
+                  headers: { "Content-Type": "application/json" },
+                });
 
-                  const cloudData = await cloudRes.json();
-                  if (!cloudRes.ok)
-                    throw new Error(
-                      cloudData.error || "Failed to delete photo from Cloudinary"
-                    );
+                const cloudData = await cloudRes.json();
+                
+                if (!cloudRes.ok) {
+                  console.error("Cloudinary delete error:", cloudData);
+                  throw new Error(
+                    cloudData.error || "Failed to delete photo from Cloudinary"
+                  );
                 }
-
-                // Delete from DB
-                const { error: dbError } = await supabase
-                  .from("photos")
-                  .delete()
-                  .eq("id", photoId);
-
-                if (dbError) throw dbError;
-
-                toast.success("Photo deleted successfully ✅");
-                fetchPhotos();
-              } catch (err: any) {
-                toast.error(err.message || "Failed to delete photo");
               }
-            }}
-            className="px-3 py-1 text-sm rounded-md bg-red-600 text-white"
-          >
-            Delete
-          </button>
-        </div>
+
+              // Delete from DB
+              const { error: dbError } = await supabase
+                .from("photos")
+                .delete()
+                .eq("id", photoId);
+
+              if (dbError) throw dbError;
+
+              toast.success("Photo deleted successfully ✅");
+              fetchPhotos();
+            } catch (err: any) {
+              console.error("Delete error:", err);
+              toast.error(err.message || "Failed to delete photo");
+            }
+          }}
+          className="px-3 py-1 text-sm rounded-md bg-red-600 text-white"
+        >
+          Delete
+        </button>
       </div>
-    ));
-  };
+    </div>
+  ));
+};
 
   /* ----------------------------------
      UI
