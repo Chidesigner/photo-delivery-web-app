@@ -11,5 +11,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-// 🚀 Public client (browser-safe)
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// 🚀 Public client (browser-safe) with proper auth config
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: false, // Prevents the refresh token error
+    storageKey: 'photo-delivery-auth',
+  }
+});

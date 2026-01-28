@@ -20,20 +20,44 @@ type Photo = {
   image_url: string;
 };
 
+type Invoice = {
+  id: string;
+  invoice_number: string;
+  client_name: string;
+  client_email: string;
+  service_description: string;
+  subtotal: number;
+  tax_percentage: number;
+  tax_amount: number;
+  discount_percentage: number;
+  discount_amount: number;
+  total: number;
+  payment_status: string;
+  amount_paid: number;
+  payment_method: string | null;
+  notes: string | null;
+  due_date: string | null;
+  issue_date: string;
+};
+
 export default function ClientGalleryViewPage() {
   const { galleryId } = useParams<{ galleryId: string }>();
 
   const [gallery, setGallery] = useState<Gallery | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
+  const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [isSlideshow, setIsSlideshow] = useState(false);
   const [imageLoaded, setImageLoaded] = useState<{ [key: number]: boolean }>({});
+  const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
   const slideshowInterval = useRef<number | null>(null);
   const activePhoto = activeIndex !== null ? photos[activeIndex] : null;
 
-  /* Load gallery + photos */
+  /* Load gallery + photos + invoice */
   const loadGallery = async () => {
     try {
       const { data: galleryData, error } = await supabase
@@ -55,6 +79,17 @@ export default function ClientGalleryViewPage() {
       if (photosError) throw new Error("Failed to load photos");
 
       setPhotos(photosData || []);
+
+      // Fetch invoice
+      const { data: invoiceData } = await supabase
+        .from("invoices")
+        .select("*")
+        .eq("gallery_id", galleryId)
+        .maybeSingle();
+
+      if (invoiceData) {
+        setInvoice(invoiceData);
+      }
     } catch (err: any) {
       toast.error(err.message || "Failed to load gallery");
     } finally {
@@ -69,7 +104,15 @@ export default function ClientGalleryViewPage() {
   /* Download logic */
   const downloadPhoto = async (photo: Photo) => {
     if (!gallery?.paid) {
-      toast("Complete payment to download photos", { icon: "🔒", duration: 4000 });
+      toast("Oops! you have a pending payment. Kindly complete payment to download photos", {
+        icon: "🔒",
+        duration: 4000,
+        style: {
+          background: '#2d2a26',
+          color: '#fff',
+          borderRadius: '12px',
+        }
+      });
       return;
     }
 
@@ -77,21 +120,95 @@ export default function ClientGalleryViewPage() {
       const response = await fetch(photo.image_url);
       const blob = await response.blob();
       saveAs(blob, photo.name);
-      toast.success("Download started");
+      toast.success("Download started", {
+        style: {
+          background: '#059669',
+          color: '#fff',
+          borderRadius: '12px',
+        }
+      });
     } catch {
       toast.error("Failed to download photo");
     }
   };
 
+  const downloadSelected = async () => {
+    if (!gallery?.paid) {
+      toast("Oops! you have a pending payment. Kindly complete payment to download photos", {
+        icon: "🔒",
+        duration: 4000,
+        style: {
+          background: '#2d2a26',
+          color: '#fff',
+          borderRadius: '12px',
+        }
+      });
+      return;
+    }
+
+    if (selectedPhotos.size === 0) return;
+
+    const selectedPhotosList = photos.filter(p => selectedPhotos.has(p.id));
+
+    toast.loading("Preparing download...", {
+      id: "zip",
+      style: {
+        background: '#2d2a26',
+        color: '#fff',
+        borderRadius: '12px',
+      }
+    });
+    const zip = new JSZip();
+    const folder = zip.folder("selected_photos");
+
+    try {
+      for (const photo of selectedPhotosList) {
+        const response = await fetch(photo.image_url);
+        const blob = await response.blob();
+        folder?.file(photo.name, blob);
+      }
+
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      saveAs(zipBlob, `selected_photos.zip`);
+      toast.success("Download complete!", {
+        id: "zip",
+        style: {
+          background: '#059669',
+          color: '#fff',
+          borderRadius: '12px',
+        }
+      });
+      setSelectedPhotos(new Set());
+      setSelectionMode(false);
+    } catch {
+      toast.error("Failed to download photos", { id: "zip" });
+    }
+  };
+
   const downloadAll = async () => {
     if (!gallery?.paid) {
-      toast("Complete payment to download photos", { icon: "🔒", duration: 4000 });
+      toast("Oops! you have a pending payment. Kindly complete payment to download photos", {
+        icon: "🔒",
+        duration: 4000,
+        style: {
+          background: '#2d2a26',
+          color: '#fff',
+          borderRadius: '12px',
+        }
+      });
       return;
     }
 
     if (photos.length === 0) return;
 
-    toast.loading("Preparing download...", { id: "zip" });
+    toast.loading("Preparing download...", {
+      id: "zip",
+      style: {
+        background: '#2d2a26',
+        color: '#fff',
+        borderRadius: '12px',
+      }
+    });
     const zip = new JSZip();
     const folder = zip.folder(gallery.event_name || "gallery");
 
@@ -104,10 +221,87 @@ export default function ClientGalleryViewPage() {
 
       const zipBlob = await zip.generateAsync({ type: "blob" });
       saveAs(zipBlob, `${gallery.event_name || "gallery"}.zip`);
-      toast.success("Download complete!", { id: "zip" });
+      toast.success("Download complete!", {
+        id: "zip",
+        style: {
+          background: '#059669',
+          color: '#fff',
+          borderRadius: '12px',
+        }
+      });
     } catch {
       toast.error("Failed to download gallery", { id: "zip" });
     }
+  };
+
+  /* Invoice Download */
+  const downloadInvoice = () => {
+    if (!invoice) return;
+
+    const invoiceContent = `
+================================================================================
+                              INVOICE
+================================================================================
+
+Invoice Number: ${invoice.invoice_number}
+Issue Date: ${new Date(invoice.issue_date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+${invoice.due_date ? `Due Date: ${new Date(invoice.due_date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}` : ''}
+
+--------------------------------------------------------------------------------
+BILL TO
+--------------------------------------------------------------------------------
+${invoice.client_name}
+${invoice.client_email}
+
+--------------------------------------------------------------------------------
+SERVICE DESCRIPTION
+--------------------------------------------------------------------------------
+${invoice.service_description}
+
+--------------------------------------------------------------------------------
+PAYMENT DETAILS
+--------------------------------------------------------------------------------
+Subtotal:                                                    ₦${invoice.subtotal.toLocaleString()}
+${invoice.tax_percentage > 0 ? `Tax (${invoice.tax_percentage}%):                                                  ₦${invoice.tax_amount.toLocaleString()}` : ''}
+${invoice.discount_percentage > 0 ? `Discount (${invoice.discount_percentage}%):                                             -₦${invoice.discount_amount.toLocaleString()}` : ''}
+--------------------------------------------------------------------------------
+TOTAL:                                                       ₦${invoice.total.toLocaleString()}
+--------------------------------------------------------------------------------
+
+Payment Status: ${invoice.payment_status.toUpperCase()}
+Amount Paid: ₦${invoice.amount_paid.toLocaleString()}
+Balance Due: ₦${(invoice.total - invoice.amount_paid).toLocaleString()}
+${invoice.payment_method ? `Payment Method: ${invoice.payment_method}` : ''}
+
+${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
+
+================================================================================
+                         Thank you for your business!
+================================================================================
+`;
+
+    const blob = new Blob([invoiceContent], { type: 'text/plain' });
+    saveAs(blob, `Invoice-${invoice.invoice_number}.txt`);
+    toast.success("Invoice downloaded!", {
+      style: {
+        background: '#059669',
+        color: '#fff',
+        borderRadius: '12px',
+      }
+    });
+  };
+
+  /* Selection */
+  const togglePhotoSelection = (photoId: string) => {
+    setSelectedPhotos(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(photoId)) {
+        newSet.delete(photoId);
+      } else {
+        newSet.add(photoId);
+      }
+      return newSet;
+    });
   };
 
   /* Navigation */
@@ -169,12 +363,40 @@ export default function ClientGalleryViewPage() {
     };
   }, [isSlideshow, activeIndex]);
 
+  /* Payment Status Badge */
+  const getPaymentBadge = () => {
+    if (!invoice) return null;
+
+    const statusColors = {
+      paid: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+      partial: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+      unpaid: "bg-red-500/10 text-red-600 border-red-500/20"
+    };
+
+    const statusLabels = {
+      paid: "Paid",
+      partial: "Partially Paid",
+      unpaid: "Payment Due"
+    };
+
+    const status = invoice.payment_status as keyof typeof statusColors;
+
+    return (
+      <span className={`px-3 py-1 text-xs font-medium rounded-full border ${statusColors[status] || statusColors.unpaid}`}>
+        {statusLabels[status] || "Payment Due"}
+      </span>
+    );
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-neutral-50">
+      <div className="min-h-screen flex items-center justify-center bg-[#fafaf9]">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-neutral-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-neutral-600 font-light">Loading your gallery...</p>
+          <div className="relative w-20 h-20 mx-auto mb-8">
+            <div className="absolute inset-0 border-4 border-[#e7e5e4] rounded-full" />
+            <div className="absolute inset-0 border-4 border-transparent border-t-[#c67b5c] rounded-full animate-spin" />
+          </div>
+          <p className="text-[#78716c] text-lg font-light tracking-wide">Preparing your gallery...</p>
         </div>
       </div>
     );
@@ -182,188 +404,481 @@ export default function ClientGalleryViewPage() {
 
   if (!gallery) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 bg-neutral-50">
-        <div className="max-w-md w-full p-12 border border-neutral-200 rounded-3xl bg-white shadow-xl text-center">
-          <h1 className="text-2xl font-light text-neutral-800 mb-2">Gallery Not Found</h1>
-          <p className="text-neutral-500 text-sm">This gallery may have been removed or the link is incorrect.</p>
+      <div className="min-h-screen flex items-center justify-center px-4 bg-[#fafaf9]">
+        <div className="max-w-md w-full p-12 border border-[#e7e5e4] rounded-3xl bg-white shadow-xl text-center">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#c67b5c]/20 to-[#8b9e87]/20 flex items-center justify-center mx-auto mb-8">
+            <svg className="w-10 h-10 text-[#c67b5c]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </div>
+          <h1 className="text-4xl font-light text-[#1c1917] mb-4">Gallery Not Found</h1>
+          <p className="text-[#78716c] leading-relaxed text-lg">This gallery may have been removed or the link is incorrect.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50">
-      {/* HERO SECTION */}
+    <div className="min-h-screen bg-[#fafaf9]">
+      {/* IMMERSIVE HERO SECTION */}
       {photos.length > 0 && (
         <div className="relative h-screen w-full flex items-center justify-center overflow-hidden">
+          {/* Hero Background */}
           <div className="absolute inset-0">
             <Image
               src={photos[0].image_url}
               alt={gallery.event_name}
               fill
-              className="object-cover"
+              className="object-cover scale-105"
               priority
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/70" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/80" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/30 to-transparent" />
           </div>
 
-          <div className="relative z-10 text-center px-6 max-w-4xl animate-fade-in-up">
-            <h1 className="font-serif text-5xl md:text-7xl lg:text-8xl text-white mb-6 tracking-tight">
-              {gallery.event_name}
-            </h1>
-            {gallery.event_date && (
-              <p className="text-white/90 text-lg md:text-xl tracking-[0.2em] uppercase font-light mb-12">
-                {new Date(gallery.event_date).toLocaleDateString("en-US", {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </p>
-            )}
+          {/* Hero Content */}
+          <div className="relative z-10 text-center text-white px-8 max-w-5xl mx-auto">
+            <div className="animate-slide-up space-y-6">
+              {/* Date Badge */}
+              {gallery.event_date && (
+                <div className="inline-flex items-center gap-2 px-5 py-2 glass-dark rounded-full text-white/90 text-sm font-light tracking-wider">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  {new Date(gallery.event_date).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </div>
+              )}
 
-            <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <button
-                onClick={() => openViewer(0, false)}
-                className="group px-10 py-4 bg-white text-black hover:bg-white/95 rounded-full font-medium transition-all duration-300 hover:scale-105 shadow-2xl"
-              >
-                <span className="flex items-center justify-center gap-2">
+              {/* Event Title */}
+              <h1 className="text-6xl md:text-8xl lg:text-9xl font-light leading-none tracking-tight">
+                {gallery.event_name}
+              </h1>
+
+              {/* Photo Count */}
+              <p className="text-xl md:text-2xl font-light text-white/70 tracking-wide">
+                {photos.length} {photos.length === 1 ? 'Memory' : 'Memories'} Captured
+              </p>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row justify-center gap-4 pt-8">
+                <button
+                  onClick={() => openViewer(0, false)}
+                  className="group px-10 py-4 bg-white text-[#2d2a26] rounded-2xl font-medium transition-all duration-500 hover:scale-105 shadow-2xl flex items-center justify-center gap-3"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
                   View Gallery
                   <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
-                </span>
-              </button>
-              <button
-                onClick={() => openViewer(0, true)}
-                className="px-10 py-4 bg-white/10 backdrop-blur-md border-2 border-white/30 text-white hover:bg-white/20 rounded-full font-medium transition-all duration-300 hover:scale-105"
-              >
-                <span className="flex items-center justify-center gap-2">
+                </button>
+                <button
+                  onClick={() => openViewer(0, true)}
+                  className="px-10 py-4 glass-dark border border-white/20 text-white rounded-2xl font-medium transition-all duration-500 hover:bg-white/10 hover:scale-105 flex items-center justify-center gap-3"
+                >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  Slideshow
-                </span>
-              </button>
+                  Play Slideshow
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Scroll indicator */}
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
-            <svg className="w-6 h-6 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-            </svg>
+          {/* Scroll Indicator */}
+          <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 text-white/60">
+            <span className="text-sm font-light tracking-widest uppercase">Scroll to explore</span>
+            <div className="w-px h-12 bg-gradient-to-b from-white/60 to-transparent animate-pulse" />
           </div>
         </div>
       )}
 
-      {/* GALLERY INFO BAR */}
-      <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-neutral-200/50 shadow-sm">
-        <div className="max-w-[1800px] mx-auto px-6 md:px-12 py-4 flex justify-between items-center">
-          <div>
-            <h2 className="font-medium text-neutral-800">{photos.length} Photos</h2>
-          </div>
-          <button
-            onClick={downloadAll}
-            className="group flex items-center gap-2 px-6 py-2.5 bg-neutral-900 text-white rounded-full hover:bg-neutral-800 transition-all duration-300 hover:scale-105 shadow-lg"
-          >
-            <svg className="w-5 h-5 transition-transform group-hover:translate-y-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            Download All
-          </button>
-        </div>
-      </div>
+      {/* PREMIUM STICKY TOOLBAR */}
+      <div className="sticky top-0 z-40 glass border-b border-[#e7e5e4]/50">
+        <div className="max-w-7xl mx-auto px-6 md:px-12 py-5">
+          <div className="flex flex-wrap justify-between items-center gap-4">
+            <div className="flex items-center gap-5">
+              <h2 className="text-xl font-light text-[#1c1917]">
+                <span className="text-[#c67b5c] font-medium">{photos.length}</span> {photos.length === 1 ? 'Photo' : 'Photos'}
+              </h2>
+              {selectionMode && (
+                <span className="text-sm text-[#78716c] bg-[#fafaf9] px-4 py-1.5 rounded-full">
+                  {selectedPhotos.size} selected
+                </span>
+              )}
+              {getPaymentBadge()}
+            </div>
 
-      {/* MASONRY GALLERY */}
-      <div className="max-w-[1800px] mx-auto px-6 md:px-12 py-16">
-        <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-6 space-y-6">
-          {photos.map((photo, i) => (
-            <div
-              key={photo.id}
-              className={`relative group break-inside-avoid cursor-pointer transition-all duration-500 ${
-                imageLoaded[i] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-              }`}
-              onClick={() => openViewer(i, false)}
-              style={{ transitionDelay: `${i * 50}ms` }}
-            >
-              <div className="relative overflow-hidden rounded-2xl bg-neutral-100 shadow-md hover:shadow-2xl transition-all duration-500">
-                <Image
-                  src={photo.image_url}
-                  alt={photo.name}
-                  width={1200}
-                  height={800}
-                  className="w-full h-auto transition-transform duration-700 ease-out group-hover:scale-105"
-                  onLoad={() => setImageLoaded(prev => ({ ...prev, [i]: true }))}
-                />
-
-                {/* Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
-                {/* Download button */}
+            <div className="flex items-center gap-3">
+              {/* Invoice Button */}
+              {invoice && (
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    downloadPhoto(photo);
-                  }}
-                  className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 bg-white/90 backdrop-blur-sm text-neutral-900 p-3 rounded-full hover:bg-white hover:scale-110 shadow-lg"
+                  onClick={() => setShowInvoiceModal(true)}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-white border border-[#e7e5e4] text-[#2d2a26] rounded-xl hover:bg-[#fafaf9] hover:border-[#c67b5c] transition-all duration-300"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
+                  View Invoice
                 </button>
+              )}
 
-                {/* Photo number indicator */}
-                <div className="absolute bottom-4 left-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <span className="text-white text-sm font-medium bg-black/50 backdrop-blur-sm px-3 py-1 rounded-full">
-                    {i + 1} / {photos.length}
-                  </span>
-                </div>
-              </div>
+              {selectionMode ? (
+                <>
+                  <button
+                    onClick={downloadSelected}
+                    disabled={selectedPhotos.size === 0}
+                    className="flex items-center gap-2 px-6 py-2.5 bg-[#c67b5c] text-white rounded-xl hover:bg-[#b36a4d] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Download ({selectedPhotos.size})
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectionMode(false);
+                      setSelectedPhotos(new Set());
+                    }}
+                    className="px-6 py-2.5 bg-white border border-[#e7e5e4] text-[#2d2a26] rounded-xl hover:bg-[#fafaf9] transition-all duration-300"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setSelectionMode(true)}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-white border border-[#e7e5e4] text-[#2d2a26] rounded-xl hover:bg-[#fafaf9] hover:border-[#c67b5c] transition-all duration-300"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Select
+                  </button>
+                  <button
+                    onClick={downloadAll}
+                    className="group flex items-center gap-2 px-6 py-2.5 bg-[#2d2a26] text-white rounded-xl hover:bg-[#3d3731] transition-all duration-300 shadow-lg"
+                  >
+                    <svg className="w-5 h-5 transition-transform group-hover:translate-y-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Download All
+                  </button>
+                </>
+              )}
             </div>
-          ))}
+          </div>
         </div>
       </div>
 
-      {/* LIGHTBOX */}
+      {/* PREMIUM MASONRY GALLERY - Pixieset Style */}
+      <div className="max-w-[1800px] mx-auto px-6 md:px-12 py-16">
+        <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-5 space-y-5">
+          {photos.map((photo, i) => {
+            const isSelected = selectedPhotos.has(photo.id);
+
+            return (
+              <div
+                key={photo.id}
+                className={`relative group break-inside-avoid cursor-pointer transition-all duration-500 ${imageLoaded[i] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+                  } ${isSelected && selectionMode ? 'ring-4 ring-[#c67b5c] ring-offset-4 rounded-xl' : ''}`}
+                onClick={() => {
+                  if (selectionMode) {
+                    togglePhotoSelection(photo.id);
+                  } else {
+                    openViewer(i, false);
+                  }
+                }}
+                style={{ transitionDelay: `${Math.min(i * 50, 500)}ms` }}
+              >
+                {/* Photo Container */}
+                <div className="relative overflow-hidden rounded-xl bg-[#e7e5e4] shadow-md hover:shadow-2xl transition-all duration-500">
+                  <Image
+                    src={photo.image_url}
+                    alt={photo.name}
+                    width={800}
+                    height={600}
+                    className="w-full h-auto transition-transform duration-700 ease-out group-hover:scale-105"
+                    onLoad={() => setImageLoaded(prev => ({ ...prev, [i]: true }))}
+                  />
+
+                  {/* Hover Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300" />
+
+                  {/* Selection Checkbox */}
+                  {selectionMode && (
+                    <div className="absolute top-3 left-3 z-20">
+                      <div className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-all duration-200 ${isSelected
+                          ? 'bg-[#c67b5c] border-[#c67b5c] shadow-lg'
+                          : 'bg-white/90 border-white backdrop-blur-sm shadow-md'
+                        }`}>
+                        {isSelected && (
+                          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Download Button */}
+                  {!selectionMode && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        downloadPhoto(photo);
+                      }}
+                      className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300 bg-white/95 backdrop-blur-sm text-[#2d2a26] p-2.5 rounded-lg hover:bg-white hover:scale-110 shadow-lg"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                    </button>
+                  )}
+
+                  {/* Photo Number */}
+                  <div className="absolute bottom-3 left-3 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                    <span className="text-white text-xs font-medium bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full">
+                      {i + 1} / {photos.length}
+                    </span>
+                  </div>
+
+                  {/* Expand Icon */}
+                  <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                    <div className="bg-black/60 backdrop-blur-sm p-2 rounded-full">
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+
+      {/* ELEGANT FOOTER */}
+      <footer className="py-20 px-6 bg-gradient-to-br from-[#2d2a26] to-[#1c1917] text-white">
+        <div className="max-w-4xl mx-auto text-center space-y-8">
+          <div className="w-20 h-px bg-gradient-to-r from-transparent via-[#c67b5c] to-transparent mx-auto" />
+
+          <h3 className="text-4xl md:text-5xl font-light">
+            Thank you for choosing us
+          </h3>
+
+          <p className="text-white/60 text-lg font-light max-w-2xl mx-auto leading-relaxed">
+            We hope these photos bring you joy for years to come. It was an honor to capture your special moments.
+          </p>
+
+          <div className="pt-8">
+            <p className="text-white/40 text-sm tracking-wider uppercase">
+              Photography by A2Studios
+            </p>
+          </div>
+        </div>
+      </footer>
+
+      {/* INVOICE MODAL */}
+      {showInvoiceModal && invoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-scale-in">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-white border-b border-[#e7e5e4] p-8 rounded-t-3xl">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="text-3xl font-light text-[#1c1917] mb-2">Invoice</h3>
+                  <p className="text-[#78716c]">#{invoice.invoice_number}</p>
+                </div>
+                <button
+                  onClick={() => setShowInvoiceModal(false)}
+                  className="p-3 hover:bg-[#fafaf9] rounded-xl transition-colors"
+                >
+                  <svg className="w-6 h-6 text-[#78716c]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-8 space-y-8">
+              {/* Status & Dates */}
+              <div className="flex flex-wrap items-center justify-between gap-4 p-6 rounded-2xl bg-gradient-to-br from-[#fafaf9] to-white border border-[#e7e5e4]">
+                <div>
+                  <p className="text-sm text-[#78716c] mb-1">Issue Date</p>
+                  <p className="text-[#1c1917] font-medium">
+                    {new Date(invoice.issue_date).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </p>
+                </div>
+                {invoice.due_date && (
+                  <div>
+                    <p className="text-sm text-[#78716c] mb-1">Due Date</p>
+                    <p className="text-[#1c1917] font-medium">
+                      {new Date(invoice.due_date).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </p>
+                  </div>
+                )}
+                <div>
+                  {getPaymentBadge()}
+                </div>
+              </div>
+
+              {/* Client Info */}
+              <div>
+                <h4 className="text-sm font-semibold text-[#78716c] uppercase tracking-wider mb-3">Bill To</h4>
+                <p className="text-xl text-[#1c1917]">{invoice.client_name}</p>
+                <p className="text-[#78716c]">{invoice.client_email}</p>
+              </div>
+
+              {/* Service Description */}
+              <div>
+                <h4 className="text-sm font-semibold text-[#78716c] uppercase tracking-wider mb-3">Service</h4>
+                <p className="text-[#1c1917] leading-relaxed">{invoice.service_description}</p>
+              </div>
+
+              {/* Pricing Breakdown */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold text-[#78716c] uppercase tracking-wider">Summary</h4>
+
+                <div className="space-y-3 text-[#1c1917]">
+                  <div className="flex justify-between">
+                    <span>Subtotal</span>
+                    <span>₦{invoice.subtotal.toLocaleString()}</span>
+                  </div>
+
+                  {invoice.tax_percentage > 0 && (
+                    <div className="flex justify-between text-[#78716c]">
+                      <span>Tax ({invoice.tax_percentage}%)</span>
+                      <span>₦{invoice.tax_amount.toLocaleString()}</span>
+                    </div>
+                  )}
+
+                  {invoice.discount_percentage > 0 && (
+                    <div className="flex justify-between text-emerald-600">
+                      <span>Discount ({invoice.discount_percentage}%)</span>
+                      <span>-₦{invoice.discount_amount.toLocaleString()}</span>
+                    </div>
+                  )}
+
+                  <div className="pt-4 border-t border-[#e7e5e4]">
+                    <div className="flex justify-between text-xl font-medium">
+                      <span>Total</span>
+                      <span className="text-[#c67b5c]">₦{invoice.total.toLocaleString()}</span>
+                    </div>
+                  </div>
+
+                  {invoice.amount_paid > 0 && (
+                    <div className="flex justify-between text-[#78716c]">
+                      <span>Amount Paid</span>
+                      <span>₦{invoice.amount_paid.toLocaleString()}</span>
+                    </div>
+                  )}
+
+                  {invoice.total - invoice.amount_paid > 0 && (
+                    <div className="flex justify-between font-medium text-red-600">
+                      <span>Balance Due</span>
+                      <span>₦{(invoice.total - invoice.amount_paid).toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Notes */}
+              {invoice.notes && (
+                <div className="p-6 rounded-2xl bg-[#fafaf9] border border-[#e7e5e4]">
+                  <h4 className="text-sm font-semibold text-[#78716c] uppercase tracking-wider mb-3">Notes</h4>
+                  <p className="text-[#1c1917] leading-relaxed">{invoice.notes}</p>
+                </div>
+              )}
+
+              {/* Download Button */}
+              <button
+                onClick={downloadInvoice}
+                className="w-full flex items-center justify-center gap-3 px-8 py-4 bg-[#2d2a26] text-white rounded-2xl hover:bg-[#3d3731] transition-all duration-300 hover:scale-[1.02] font-medium shadow-lg"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Download Invoice
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* LUXURY LIGHTBOX */}
       {activePhoto && (
-        <div className="fixed inset-0 z-50 bg-black/98 backdrop-blur-sm">
-          <div className="absolute inset-0 flex items-center justify-center p-4 md:p-8">
+        <div className="fixed inset-0 z-50 bg-black">
+          <div className="absolute inset-0 flex items-center justify-center">
             {/* Close button */}
             <button
               onClick={closeViewer}
-              className="absolute top-6 right-6 text-white/80 hover:text-white p-3 bg-white/10 hover:bg-white/20 rounded-full transition-all duration-300 hover:rotate-90 z-50"
+              className="absolute top-6 right-6 text-white/70 hover:text-white p-4 bg-white/5 hover:bg-white/10 rounded-2xl transition-all duration-300 z-50 backdrop-blur-sm"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
 
-            {/* Navigation */}
+            {/* Slideshow indicator */}
+            {isSlideshow && (
+              <div className="absolute top-6 left-6 flex items-center gap-3 px-5 py-3 bg-white/10 backdrop-blur-sm rounded-2xl text-white/90 z-50">
+                <div className="w-2 h-2 rounded-full bg-[#c67b5c] animate-pulse" />
+                <span className="text-sm font-light tracking-wide">Slideshow</span>
+                <button
+                  onClick={() => setIsSlideshow(false)}
+                  className="ml-2 text-white/60 hover:text-white transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            )}
+
+            {/* Navigation - Previous */}
             {activeIndex! > 0 && (
               <button
                 onClick={prevPhoto}
-                className="absolute left-6 top-1/2 -translate-y-1/2 text-white p-4 bg-white/10 hover:bg-white/20 rounded-full transition-all duration-300 hover:scale-110 z-50"
+                className="absolute left-6 top-1/2 -translate-y-1/2 text-white/70 hover:text-white p-5 bg-white/5 hover:bg-white/10 rounded-2xl transition-all duration-300 z-50 backdrop-blur-sm"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
             )}
 
+            {/* Navigation - Next */}
             {activeIndex! < photos.length - 1 && (
               <button
                 onClick={nextPhoto}
-                className="absolute right-6 top-1/2 -translate-y-1/2 text-white p-4 bg-white/10 hover:bg-white/20 rounded-full transition-all duration-300 hover:scale-110 z-50"
+                className="absolute right-6 top-1/2 -translate-y-1/2 text-white/70 hover:text-white p-5 bg-white/5 hover:bg-white/10 rounded-2xl transition-all duration-300 z-50 backdrop-blur-sm"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
                 </svg>
               </button>
             )}
 
-            {/* Image */}
-            <div className="relative w-full h-full max-w-7xl max-h-[85vh]">
+            {/* Main Image - Full uncropped view */}
+            <div className="relative w-full h-full max-w-[90vw] max-h-[85vh] mx-auto">
               <Image
                 src={activePhoto.image_url}
                 alt={activePhoto.name}
@@ -373,18 +888,18 @@ export default function ClientGalleryViewPage() {
               />
             </div>
 
-            {/* Bottom bar */}
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
-              <div className="max-w-7xl mx-auto flex justify-between items-center">
-                <div className="text-white">
-                  <p className="text-sm opacity-70">
-                    {activeIndex! + 1} / {photos.length}
+            {/* Bottom Bar */}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-10">
+              <div className="max-w-7xl mx-auto flex justify-between items-end">
+                <div className="text-white space-y-2">
+                  <p className="text-sm text-white/50 font-light tracking-wider uppercase">
+                    {activeIndex! + 1} of {photos.length}
                   </p>
-                  <p className="text-lg font-light mt-1">{activePhoto.name}</p>
+                  <p className="text-2xl font-light">{activePhoto.name}</p>
                 </div>
                 <button
                   onClick={() => downloadPhoto(activePhoto)}
-                  className="flex items-center gap-2 px-6 py-3 bg-white text-black rounded-full hover:bg-white/90 transition-all duration-300 hover:scale-105 font-medium"
+                  className="flex items-center gap-3 px-8 py-4 bg-white text-[#2d2a26] rounded-2xl hover:bg-white/90 transition-all duration-300 hover:scale-105 font-medium shadow-2xl"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -396,22 +911,6 @@ export default function ClientGalleryViewPage() {
           </div>
         </div>
       )}
-
-      <style jsx>{`
-        @keyframes fade-in-up {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-fade-in-up {
-          animation: fade-in-up 1s ease-out;
-        }
-      `}</style>
     </div>
   );
 }
