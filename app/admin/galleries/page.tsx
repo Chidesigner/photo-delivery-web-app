@@ -241,25 +241,25 @@ export default function AdminGalleriesPage() {
         {/* Header */}
         <div className="bg-white border-b border-[#e7e5e4]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-12 py-6 sm:py-8">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-              <div>
-                <h1 className="text-3xl sm:text-4xl font-light text-[#1c1917] mb-1 sm:mb-2">Client Galleries</h1>
-                <p className="text-[#78716c] text-sm sm:text-base">Manage your photo delivery galleries</p>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-6">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-2xl sm:text-4xl font-light text-[#1c1917] mb-1 truncate">Client Galleries</h1>
+                <p className="text-[#78716c] text-xs sm:text-base truncate">Manage your photo delivery galleries</p>
               </div>
 
               <div className="flex flex-row items-center gap-2 sm:gap-3 w-full sm:w-auto">
                 <button
                   onClick={handleLogout}
-                  className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 bg-white border border-[#e7e5e4] text-[#2d2a26] rounded-xl hover:bg-[#fafaf9] transition-all duration-300 text-sm sm:text-base"
+                  className="flex-1 sm:flex-none px-4 sm:px-6 py-2 bg-white border border-[#e7e5e4] text-[#2d2a26] rounded-xl hover:bg-[#fafaf9] transition-all duration-300 text-xs sm:text-base h-10 sm:h-12"
                 >
                   Logout
                 </button>
 
                 <button
                   onClick={() => router.push("/admin/galleries/create")}
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 bg-[#2d2a26] text-white rounded-xl hover:bg-[#3d3731] transition-all duration-300 hover:scale-105 shadow-lg text-sm sm:text-base whitespace-nowrap"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 bg-[#2d2a26] text-white rounded-xl hover:bg-[#3d3731] transition-all duration-300 hover:scale-105 shadow-lg text-xs sm:text-base whitespace-nowrap h-10 sm:h-12"
                 >
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3.5 h-3.5 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
                   New Gallery
@@ -270,7 +270,7 @@ export default function AdminGalleriesPage() {
         </div>
 
         {/* Main content */}
-        <div className="max-w-7xl mx-auto px-6 md:px-12 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-12 py-8 sm:py-12">
           {loading ? (
             <div className="flex items-center justify-center py-32">
               <div className="text-center">
@@ -365,12 +365,12 @@ export default function AdminGalleriesPage() {
 
                           {/* Invoice badge */}
                           {invoice && (
-                            <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-br from-[#c67b5c]/10 to-[#8b9e87]/10 border border-[#c67b5c]/20 max-w-full overflow-hidden">
+                            <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-br from-[#c67b5c]/10 to-[#8b9e87]/10 border border-[#c67b5c]/20 max-w-full">
                               <svg className="w-3.5 h-3.5 text-[#c67b5c] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                               </svg>
                               <span className="text-[10px] sm:text-xs font-medium text-[#c67b5c] truncate">
-                                {invoice.invoice_number} • ₦{invoice.total.toLocaleString()} • {invoice.payment_status}
+                                {invoice.invoice_number} <span className="hidden xs:inline">• ₦{invoice.total.toLocaleString()}</span> • {invoice.payment_status}
                               </span>
                             </div>
                           )}
@@ -396,10 +396,10 @@ export default function AdminGalleriesPage() {
                           </div>
 
                           {/* Action buttons grid/flex */}
-                          <div className="grid grid-cols-4 sm:flex items-center gap-2">
+                          <div className="grid grid-cols-4 sm:flex items-center gap-2 flex-shrink-0">
                             <button
                               onClick={() => copyGalleryLink(g.id)}
-                              className="flex items-center justify-center p-2.5 sm:p-3 rounded-xl bg-[#fafaf9] border border-[#e7e5e4] hover:bg-white hover:border-[#c67b5c] transition-all duration-300 group"
+                              className="flex items-center justify-center p-2 rounded-xl bg-[#fafaf9] border border-[#e7e5e4] hover:bg-white hover:border-[#c67b5c] transition-all duration-300 h-10 w-10 sm:h-12 sm:w-12 group"
                               title="Copy client link"
                             >
                               <svg className="w-4 h-4 sm:w-5 sm:h-5 text-[#78716c] group-hover:text-[#c67b5c]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -412,7 +412,7 @@ export default function AdminGalleriesPage() {
                                 setEditingId(g.id)
                                 setEmailInput(g.client_email)
                               }}
-                              className="flex items-center justify-center p-2.5 sm:p-3 rounded-xl bg-[#fafaf9] border border-[#e7e5e4] hover:bg-white hover:border-[#c67b5c] transition-all duration-300 group"
+                              className="flex items-center justify-center p-2 rounded-xl bg-[#fafaf9] border border-[#e7e5e4] hover:bg-white hover:border-[#c67b5c] transition-all duration-300 h-10 w-10 sm:h-12 sm:w-12 group"
                               title="Edit client email"
                             >
                               <svg className="w-4 h-4 sm:w-5 sm:h-5 text-[#78716c] group-hover:text-[#c67b5c]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -422,7 +422,7 @@ export default function AdminGalleriesPage() {
 
                             <button
                               onClick={() => openInvoiceModal(g)}
-                              className="flex items-center justify-center p-2.5 sm:p-3 rounded-xl bg-[#fafaf9] border border-[#e7e5e4] hover:bg-white hover:border-[#c67b5c] transition-all duration-300 group"
+                              className="flex items-center justify-center p-2 rounded-xl bg-[#fafaf9] border border-[#e7e5e4] hover:bg-white hover:border-[#c67b5c] transition-all duration-300 h-10 w-10 sm:h-12 sm:w-12 group"
                               title="Create/Edit invoice"
                             >
                               <svg className="w-4 h-4 sm:w-5 sm:h-5 text-[#78716c] group-hover:text-[#c67b5c]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -432,7 +432,7 @@ export default function AdminGalleriesPage() {
 
                             <button
                               onClick={() => deleteGallery(g.id, g.event_name)}
-                              className="flex items-center justify-center p-2.5 sm:p-3 rounded-xl bg-[#fef2f2] border border-[#fecaca] hover:bg-[#fee2e2] transition-all duration-300 group"
+                              className="flex items-center justify-center p-2 rounded-xl bg-[#fef2f2] border border-[#fecaca] hover:bg-[#fee2e2] transition-all duration-300 h-10 w-10 sm:h-12 sm:w-12 group"
                               title="Delete gallery"
                             >
                               <svg className="w-4 h-4 sm:w-5 sm:h-5 text-[#dc2626]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -442,7 +442,7 @@ export default function AdminGalleriesPage() {
 
                             <button
                               onClick={() => router.push(`/admin/galleries/${g.id}/upload`)}
-                              className="col-span-4 sm:col-span-1 px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl bg-[#2d2a26] text-white hover:bg-[#3d3731] transition-all duration-300 hover:scale-105 font-medium text-sm sm:text-base"
+                              className="col-span-4 sm:col-span-1 px-4 sm:px-6 py-2 sm:py-3 rounded-xl bg-[#2d2a26] text-white hover:bg-[#3d3731] transition-all duration-300 hover:scale-105 font-medium text-xs sm:text-base h-10 sm:h-auto"
                             >
                               Manage
                             </button>
