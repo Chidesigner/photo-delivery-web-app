@@ -27,7 +27,7 @@ interface Invoice {
 export default function AdminGalleriesPage() {
   const router = useRouter()
   const [galleries, setGalleries] = useState<Gallery[]>([])
-  const [invoices, setInvoices] = useState<{[key: string]: Invoice}>({})
+  const [invoices, setInvoices] = useState<{ [key: string]: Invoice }>({})
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [emailInput, setEmailInput] = useState("")
@@ -70,7 +70,7 @@ export default function AdminGalleriesPage() {
       console.error(error)
     } else {
       setGalleries(data || [])
-      
+
       // Fetch invoices for all galleries
       if (data && data.length > 0) {
         const galleryIds = data.map(g => g.id)
@@ -78,9 +78,9 @@ export default function AdminGalleriesPage() {
           .from("invoices")
           .select("*")
           .in("gallery_id", galleryIds)
-        
+
         if (invoiceData) {
-          const invoiceMap: {[key: string]: Invoice} = {}
+          const invoiceMap: { [key: string]: Invoice } = {}
           invoiceData.forEach(inv => {
             invoiceMap[inv.gallery_id] = inv
           })
@@ -155,14 +155,14 @@ export default function AdminGalleriesPage() {
   /** Open invoice modal */
   const openInvoiceModal = async (gallery: Gallery) => {
     setSelectedGallery(gallery)
-    
+
     // Check if invoice already exists
     const { data } = await supabase
       .from("invoices")
       .select("*")
       .eq("gallery_id", gallery.id)
       .single()
-    
+
     setExistingInvoice(data || null)
     setShowInvoiceModal(true)
   }
@@ -218,7 +218,7 @@ export default function AdminGalleriesPage() {
           </div>
         </div>
       ),
-      { 
+      {
         duration: 8000,
         style: {
           background: '#fff',
@@ -240,26 +240,26 @@ export default function AdminGalleriesPage() {
       <div className="min-h-screen bg-[#fafaf9]">
         {/* Header */}
         <div className="bg-white border-b border-[#e7e5e4]">
-          <div className="max-w-7xl mx-auto px-6 md:px-12 py-8">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-12 py-6 sm:py-8">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
               <div>
-                <h1 className="text-4xl font-light text-[#1c1917] mb-2">Client Galleries</h1>
-                <p className="text-[#78716c]">Manage your photo delivery galleries</p>
+                <h1 className="text-3xl sm:text-4xl font-light text-[#1c1917] mb-1 sm:mb-2">Client Galleries</h1>
+                <p className="text-[#78716c] text-sm sm:text-base">Manage your photo delivery galleries</p>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex flex-row items-center gap-2 sm:gap-3 w-full sm:w-auto">
                 <button
                   onClick={handleLogout}
-                  className="px-6 py-2.5 bg-white border border-[#e7e5e4] text-[#2d2a26] rounded-xl hover:bg-[#fafaf9] transition-all duration-300"
+                  className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 bg-white border border-[#e7e5e4] text-[#2d2a26] rounded-xl hover:bg-[#fafaf9] transition-all duration-300 text-sm sm:text-base"
                 >
                   Logout
                 </button>
 
                 <button
                   onClick={() => router.push("/admin/galleries/create")}
-                  className="flex items-center gap-2 px-6 py-2.5 bg-[#2d2a26] text-white rounded-xl hover:bg-[#3d3731] transition-all duration-300 hover:scale-105 shadow-lg"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 bg-[#2d2a26] text-white rounded-xl hover:bg-[#3d3731] transition-all duration-300 hover:scale-105 shadow-lg text-sm sm:text-base whitespace-nowrap"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
                   New Gallery
@@ -303,7 +303,7 @@ export default function AdminGalleriesPage() {
             <div className="grid gap-6">
               {galleries.map((g) => {
                 const invoice = invoices[g.id]
-                
+
                 return (
                   <div
                     key={g.id}
@@ -313,94 +313,96 @@ export default function AdminGalleriesPage() {
                       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                         {/* Info section */}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between mb-3">
-                            <div>
-                              <h2 className="text-2xl font-medium text-[#1c1917] mb-2 truncate">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="w-full">
+                              <h2 className="text-xl sm:text-2xl font-medium text-[#1c1917] mb-1 sm:mb-2 truncate">
                                 {g.event_name}
                               </h2>
                               {editingId === g.id ? (
-                                <div className="flex flex-col sm:flex-row gap-3 mt-3">
+                                <div className="flex flex-col gap-2 mt-2 w-full">
                                   <Input
                                     value={emailInput}
                                     onChange={(e) => setEmailInput(e.target.value)}
-                                    className="flex-1 min-w-0 rounded-xl border-[#e7e5e4] focus:border-[#c67b5c] focus:ring-[#c67b5c]"
+                                    className="w-full rounded-xl border-[#e7e5e4] focus:border-[#c67b5c] focus:ring-[#c67b5c]"
                                     placeholder="client@email.com"
                                   />
                                   <div className="flex gap-2">
                                     <button
                                       onClick={() => updateEmail(g.id)}
-                                      className="px-6 py-2.5 bg-[#059669] text-white rounded-xl hover:bg-[#047857] transition-colors"
+                                      className="flex-1 px-4 py-2 bg-[#059669] text-white rounded-xl hover:bg-[#047857] transition-colors text-sm"
                                     >
                                       Save
                                     </button>
                                     <button
                                       onClick={() => setEditingId(null)}
-                                      className="px-6 py-2.5 bg-white border border-[#e7e5e4] text-[#2d2a26] rounded-xl hover:bg-[#fafaf9] transition-colors"
+                                      className="flex-1 px-4 py-2 bg-white border border-[#e7e5e4] text-[#2d2a26] rounded-xl hover:bg-[#fafaf9] transition-colors text-sm"
                                     >
                                       Cancel
                                     </button>
                                   </div>
                                 </div>
                               ) : (
-                                <div className="flex items-center gap-3 text-[#78716c]">
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div className="flex items-center gap-2 text-[#78716c] truncate">
+                                  <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                                   </svg>
-                                  <span className="text-sm">{g.client_email}</span>
+                                  <span className="text-sm truncate">{g.client_email}</span>
                                 </div>
                               )}
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2 text-xs text-[#78716c]">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <div className="flex items-center gap-2 text-[10px] sm:text-xs text-[#78716c]">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
                             Created {new Date(g.created_at).toLocaleDateString("en-US", {
                               year: "numeric",
-                              month: "long",
+                              month: "short",
                               day: "numeric",
                             })}
                           </div>
 
                           {/* Invoice badge */}
                           {invoice && (
-                            <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-br from-[#c67b5c]/10 to-[#8b9e87]/10 border border-[#c67b5c]/20">
-                              <svg className="w-4 h-4 text-[#c67b5c]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-br from-[#c67b5c]/10 to-[#8b9e87]/10 border border-[#c67b5c]/20 max-w-full overflow-hidden">
+                              <svg className="w-3.5 h-3.5 text-[#c67b5c] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                               </svg>
-                              <span className="text-xs font-medium text-[#c67b5c]">
+                              <span className="text-[10px] sm:text-xs font-medium text-[#c67b5c] truncate">
                                 {invoice.invoice_number} • ₦{invoice.total.toLocaleString()} • {invoice.payment_status}
                               </span>
                             </div>
                           )}
                         </div>
 
-                        {/* Actions section */}
-                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-                          {/* Payment status */}
-                          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[#fafaf9] border border-[#e7e5e4]">
-                            <span className="text-sm font-medium text-[#1c1917]">
+                        {/* Actions section - Optimized for small screens */}
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 pt-4 sm:pt-0 border-t sm:border-t-0 border-[#e7e5e4]/50">
+                          {/* Payment status toggle */}
+                          <div className="flex items-center justify-between sm:justify-start gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-xl bg-[#fafaf9] border border-[#e7e5e4]">
+                            <span className="text-xs sm:text-sm font-medium text-[#1c1917]">
                               Payment
                             </span>
-                            <Switch
-                              checked={g.paid}
-                              onCheckedChange={(value) => togglePaid(g.id, value)}
-                              className="h-6 w-11"
-                            />
-                            <span className={`text-xs font-medium ${g.paid ? 'text-[#059669]' : 'text-[#78716c]'}`}>
-                              {g.paid ? 'Enabled' : 'Disabled'}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={g.paid}
+                                onCheckedChange={(value) => togglePaid(g.id, value)}
+                                className="h-5 w-9 sm:h-6 sm:w-11"
+                              />
+                              <span className={`text-[10px] sm:text-xs font-medium w-12 sm:w-14 ${g.paid ? 'text-[#059669]' : 'text-[#78716c]'}`}>
+                                {g.paid ? 'Enabled' : 'Disabled'}
+                              </span>
+                            </div>
                           </div>
 
-                          {/* Action buttons */}
-                          <div className="flex items-center gap-2">
+                          {/* Action buttons grid/flex */}
+                          <div className="grid grid-cols-4 sm:flex items-center gap-2">
                             <button
                               onClick={() => copyGalleryLink(g.id)}
-                              className="p-3 rounded-xl bg-[#fafaf9] border border-[#e7e5e4] hover:bg-white hover:border-[#c67b5c] transition-all duration-300 group"
+                              className="flex items-center justify-center p-2.5 sm:p-3 rounded-xl bg-[#fafaf9] border border-[#e7e5e4] hover:bg-white hover:border-[#c67b5c] transition-all duration-300 group"
                               title="Copy client link"
                             >
-                              <svg className="w-5 h-5 text-[#78716c] group-hover:text-[#c67b5c]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-[#78716c] group-hover:text-[#c67b5c]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                               </svg>
                             </button>
@@ -410,40 +412,39 @@ export default function AdminGalleriesPage() {
                                 setEditingId(g.id)
                                 setEmailInput(g.client_email)
                               }}
-                              className="p-3 rounded-xl bg-[#fafaf9] border border-[#e7e5e4] hover:bg-white hover:border-[#c67b5c] transition-all duration-300 group"
+                              className="flex items-center justify-center p-2.5 sm:p-3 rounded-xl bg-[#fafaf9] border border-[#e7e5e4] hover:bg-white hover:border-[#c67b5c] transition-all duration-300 group"
                               title="Edit client email"
                             >
-                              <svg className="w-5 h-5 text-[#78716c] group-hover:text-[#c67b5c]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-[#78716c] group-hover:text-[#c67b5c]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                               </svg>
                             </button>
 
                             <button
                               onClick={() => openInvoiceModal(g)}
-                              className="px-4 py-3 rounded-xl bg-gradient-to-br from-[#c67b5c] to-[#8b9e87] text-white hover:from-[#b36a4d] hover:to-[#7a8d76] transition-all duration-300 hover:scale-105 font-medium flex items-center gap-2"
+                              className="flex items-center justify-center p-2.5 sm:p-3 rounded-xl bg-[#fafaf9] border border-[#e7e5e4] hover:bg-white hover:border-[#c67b5c] transition-all duration-300 group"
                               title="Create/Edit invoice"
                             >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-[#78716c] group-hover:text-[#c67b5c]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                               </svg>
-                              {invoice ? 'Edit' : 'Invoice'}
-                            </button>
-
-                            <button
-                              onClick={() => router.push(`/admin/galleries/${g.id}/upload`)}
-                              className="px-6 py-3 rounded-xl bg-[#2d2a26] text-white hover:bg-[#3d3731] transition-all duration-300 hover:scale-105 font-medium"
-                            >
-                              Manage
                             </button>
 
                             <button
                               onClick={() => deleteGallery(g.id, g.event_name)}
-                              className="p-3 rounded-xl bg-[#fef2f2] border border-[#fecaca] hover:bg-[#fee2e2] transition-all duration-300 group"
+                              className="flex items-center justify-center p-2.5 sm:p-3 rounded-xl bg-[#fef2f2] border border-[#fecaca] hover:bg-[#fee2e2] transition-all duration-300 group"
                               title="Delete gallery"
                             >
-                              <svg className="w-5 h-5 text-[#dc2626]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-[#dc2626]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                               </svg>
+                            </button>
+
+                            <button
+                              onClick={() => router.push(`/admin/galleries/${g.id}/upload`)}
+                              className="col-span-4 sm:col-span-1 px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl bg-[#2d2a26] text-white hover:bg-[#3d3731] transition-all duration-300 hover:scale-105 font-medium text-sm sm:text-base"
+                            >
+                              Manage
                             </button>
                           </div>
                         </div>

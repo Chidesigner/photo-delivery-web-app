@@ -453,8 +453,8 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
                 </div>
               )}
 
-              {/* Event Title */}
-              <h1 className="text-6xl md:text-8xl lg:text-9xl font-light leading-none tracking-tight">
+              {/* Event Title - Responsive Type */}
+              <h1 className="text-4xl sm:text-6xl md:text-8xl lg:text-9xl font-light leading-tight sm:leading-none tracking-tight">
                 {gallery.event_name}
               </h1>
 
@@ -463,23 +463,23 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
                 {photos.length} {photos.length === 1 ? 'Memory' : 'Memories'} Captured
               </p>
 
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row justify-center gap-4 pt-8">
+              {/* Action Buttons - Mobile Stack */}
+              <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 pt-6 sm:pt-8 w-full max-w-sm mx-auto sm:max-w-none">
                 <button
                   onClick={() => openViewer(0, false)}
-                  className="group px-10 py-4 bg-white text-[#2d2a26] rounded-2xl font-medium transition-all duration-500 hover:scale-105 shadow-2xl flex items-center justify-center gap-3"
+                  className="group px-6 sm:px-10 py-3.5 sm:py-4 bg-white text-[#2d2a26] rounded-xl sm:rounded-2xl font-medium transition-all duration-500 hover:scale-105 shadow-2xl flex items-center justify-center gap-2 sm:gap-3 text-sm sm:text-base"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                   View Gallery
-                  <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
                 <button
                   onClick={() => openViewer(0, true)}
-                  className="px-10 py-4 glass-dark border border-white/20 text-white rounded-2xl font-medium transition-all duration-500 hover:bg-white/10 hover:scale-105 flex items-center justify-center gap-3"
+                  className="px-6 sm:px-10 py-3.5 sm:py-4 glass-dark border border-white/20 text-white rounded-xl sm:rounded-2xl font-medium transition-all duration-500 hover:bg-white/10 hover:scale-105 flex items-center justify-center gap-2 sm:gap-3 text-sm sm:text-base"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
@@ -499,33 +499,37 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
         </div>
       )}
 
-      {/* PREMIUM STICKY TOOLBAR */}
+      {/* PREMIUM STICKY TOOLBAR - Mobile Optimized */}
       <div className="sticky top-0 z-40 glass border-b border-[#e7e5e4]/50">
-        <div className="max-w-7xl mx-auto px-6 md:px-12 py-5">
-          <div className="flex flex-wrap justify-between items-center gap-4">
-            <div className="flex items-center gap-5">
-              <h2 className="text-xl font-light text-[#1c1917]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-12 py-4">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+            {/* Left side - Photo count and status */}
+            <div className="flex items-center justify-between sm:justify-start gap-3 sm:gap-5">
+              <h2 className="text-lg sm:text-xl font-light text-[#1c1917]">
                 <span className="text-[#c67b5c] font-medium">{photos.length}</span> {photos.length === 1 ? 'Photo' : 'Photos'}
               </h2>
-              {selectionMode && (
-                <span className="text-sm text-[#78716c] bg-[#fafaf9] px-4 py-1.5 rounded-full">
-                  {selectedPhotos.size} selected
-                </span>
-              )}
-              {getPaymentBadge()}
+              <div className="flex items-center gap-2">
+                {selectionMode && (
+                  <span className="text-xs sm:text-sm text-[#78716c] bg-[#fafaf9] px-3 py-1 rounded-full">
+                    {selectedPhotos.size} selected
+                  </span>
+                )}
+                {getPaymentBadge()}
+              </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            {/* Right side - Action buttons */}
+            <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto pb-1 sm:pb-0 -mx-4 px-4 sm:mx-0 sm:px-0">
               {/* Invoice Button */}
               {invoice && (
                 <button
                   onClick={() => setShowInvoiceModal(true)}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-white border border-[#e7e5e4] text-[#2d2a26] rounded-xl hover:bg-[#fafaf9] hover:border-[#c67b5c] transition-all duration-300"
+                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-white border border-[#e7e5e4] text-[#2d2a26] rounded-lg sm:rounded-xl hover:bg-[#fafaf9] hover:border-[#c67b5c] transition-all duration-300 text-sm whitespace-nowrap flex-shrink-0"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  View Invoice
+                  <span className="hidden xs:inline">Invoice</span>
                 </button>
               )}
 
@@ -534,9 +538,9 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
                   <button
                     onClick={downloadSelected}
                     disabled={selectedPhotos.size === 0}
-                    className="flex items-center gap-2 px-6 py-2.5 bg-[#c67b5c] text-white rounded-xl hover:bg-[#b36a4d] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-[#c67b5c] text-white rounded-lg sm:rounded-xl hover:bg-[#b36a4d] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm whitespace-nowrap flex-shrink-0"
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
                     Download ({selectedPhotos.size})
@@ -546,7 +550,7 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
                       setSelectionMode(false);
                       setSelectedPhotos(new Set());
                     }}
-                    className="px-6 py-2.5 bg-white border border-[#e7e5e4] text-[#2d2a26] rounded-xl hover:bg-[#fafaf9] transition-all duration-300"
+                    className="px-3 sm:px-5 py-2 sm:py-2.5 bg-white border border-[#e7e5e4] text-[#2d2a26] rounded-lg sm:rounded-xl hover:bg-[#fafaf9] transition-all duration-300 text-sm whitespace-nowrap flex-shrink-0"
                   >
                     Cancel
                   </button>
@@ -555,18 +559,18 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
                 <>
                   <button
                     onClick={() => setSelectionMode(true)}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-white border border-[#e7e5e4] text-[#2d2a26] rounded-xl hover:bg-[#fafaf9] hover:border-[#c67b5c] transition-all duration-300"
+                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-white border border-[#e7e5e4] text-[#2d2a26] rounded-lg sm:rounded-xl hover:bg-[#fafaf9] hover:border-[#c67b5c] transition-all duration-300 text-sm whitespace-nowrap flex-shrink-0"
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     Select
                   </button>
                   <button
                     onClick={downloadAll}
-                    className="group flex items-center gap-2 px-6 py-2.5 bg-[#2d2a26] text-white rounded-xl hover:bg-[#3d3731] transition-all duration-300 shadow-lg"
+                    className="group flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-[#2d2a26] text-white rounded-lg sm:rounded-xl hover:bg-[#3d3731] transition-all duration-300 shadow-lg text-sm whitespace-nowrap flex-shrink-0"
                   >
-                    <svg className="w-5 h-5 transition-transform group-hover:translate-y-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:translate-y-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
                     Download All
@@ -577,6 +581,7 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
           </div>
         </div>
       </div>
+
 
       {/* PREMIUM MASONRY GALLERY - Pixieset Style */}
       <div className="max-w-[1800px] mx-auto px-6 md:px-12 py-16">
@@ -616,8 +621,8 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
                   {selectionMode && (
                     <div className="absolute top-3 left-3 z-20">
                       <div className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-all duration-200 ${isSelected
-                          ? 'bg-[#c67b5c] border-[#c67b5c] shadow-lg'
-                          : 'bg-white/90 border-white backdrop-blur-sm shadow-md'
+                        ? 'bg-[#c67b5c] border-[#c67b5c] shadow-lg'
+                        : 'bg-white/90 border-white backdrop-blur-sm shadow-md'
                         }`}>
                         {isSelected && (
                           <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -691,51 +696,53 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
       {showInvoiceModal && invoice && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-scale-in">
-            {/* Modal Header */}
-            <div className="sticky top-0 bg-white border-b border-[#e7e5e4] p-8 rounded-t-3xl">
+            {/* Modal Header - Compact for mobile */}
+            <div className="sticky top-0 bg-white border-b border-[#e7e5e4] p-5 sm:p-8 rounded-t-3xl">
               <div className="flex justify-between items-start">
                 <div>
-                  <h3 className="text-3xl font-light text-[#1c1917] mb-2">Invoice</h3>
-                  <p className="text-[#78716c]">#{invoice.invoice_number}</p>
+                  <h3 className="text-2xl sm:text-3xl font-light text-[#1c1917] mb-1 sm:mb-2">Invoice</h3>
+                  <p className="text-[#78716c] text-sm sm:text-base">#{invoice.invoice_number}</p>
                 </div>
                 <button
                   onClick={() => setShowInvoiceModal(false)}
-                  className="p-3 hover:bg-[#fafaf9] rounded-xl transition-colors"
+                  className="p-2 sm:p-3 hover:bg-[#fafaf9] rounded-xl transition-colors"
                 >
-                  <svg className="w-6 h-6 text-[#78716c]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6 text-[#78716c]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
             </div>
 
-            {/* Modal Content */}
-            <div className="p-8 space-y-8">
-              {/* Status & Dates */}
-              <div className="flex flex-wrap items-center justify-between gap-4 p-6 rounded-2xl bg-gradient-to-br from-[#fafaf9] to-white border border-[#e7e5e4]">
-                <div>
-                  <p className="text-sm text-[#78716c] mb-1">Issue Date</p>
-                  <p className="text-[#1c1917] font-medium">
-                    {new Date(invoice.issue_date).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </p>
-                </div>
-                {invoice.due_date && (
-                  <div>
-                    <p className="text-sm text-[#78716c] mb-1">Due Date</p>
-                    <p className="text-[#1c1917] font-medium">
-                      {new Date(invoice.due_date).toLocaleDateString("en-US", {
+            {/* Modal Content - Responsive padding */}
+            <div className="p-5 sm:p-8 space-y-6 sm:space-y-8">
+              {/* Status & Dates - Mobile Stack */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-[#fafaf9] to-white border border-[#e7e5e4]">
+                <div className="flex gap-8 sm:block">
+                  <div className="mb-0 sm:mb-4">
+                    <p className="text-xs text-[#78716c] mb-1">Issue Date</p>
+                    <p className="text-sm sm:text-base text-[#1c1917] font-medium">
+                      {new Date(invoice.issue_date).toLocaleDateString("en-US", {
                         year: "numeric",
-                        month: "long",
+                        month: "short",
                         day: "numeric",
                       })}
                     </p>
                   </div>
-                )}
-                <div>
+                  {invoice.due_date && (
+                    <div>
+                      <p className="text-xs text-[#78716c] mb-1">Due Date</p>
+                      <p className="text-sm sm:text-base text-[#1c1917] font-medium">
+                        {new Date(invoice.due_date).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <div className="pt-4 sm:pt-0 border-t sm:border-t-0 border-[#e7e5e4]/50">
                   {getPaymentBadge()}
                 </div>
               </div>

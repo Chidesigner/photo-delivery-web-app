@@ -10,6 +10,11 @@
    Rich, sophisticated color palette
 ============================================= */
 
+html, body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
 :root {
   /* Premium Color Palette - Deep charcoal & warm earth tones */
   --background: #fafaf9;

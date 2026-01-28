@@ -187,7 +187,7 @@ export default function AdminGalleryUploadPage() {
                   });
 
                   const cloudData = await cloudRes.json();
-                  
+
                   if (!cloudRes.ok) {
                     throw new Error(
                       cloudData.error || "Failed to delete photo from Cloudinary"
@@ -238,13 +238,13 @@ export default function AdminGalleryUploadPage() {
       <div className="min-h-screen bg-[#fafaf9]">
         {/* Header */}
         <div className="bg-white border-b border-[#e7e5e4]">
-          <div className="max-w-7xl mx-auto px-6 md:px-12 py-8">
-            <div className="flex items-center justify-between mb-6">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-12 py-6 sm:py-8">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
               <button
                 onClick={() => router.push("/admin/galleries")}
-                className="flex items-center gap-2 text-[#78716c] hover:text-[#c67b5c] transition-colors"
+                className="flex items-center gap-2 text-sm sm:text-base text-[#78716c] hover:text-[#c67b5c] transition-colors"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
                 Back to Galleries
@@ -253,30 +253,30 @@ export default function AdminGalleryUploadPage() {
 
             {gallery && (
               <div>
-                <h1 className="text-4xl font-light text-[#1c1917] mb-3">
+                <h1 className="text-2xl sm:text-4xl font-light text-[#1c1917] mb-2 sm:mb-3 truncate">
                   {gallery.event_name}
                 </h1>
-                <div className="flex flex-wrap items-center gap-4 text-[#78716c]">
-                  <span className="flex items-center gap-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-base text-[#78716c]">
+                  <span className="flex items-center gap-1.5 sm:gap-2">
+                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                     </svg>
-                    {gallery.client_email}
+                    <span className="truncate max-w-[150px] sm:max-w-none">{gallery.client_email}</span>
                   </span>
                   {gallery.event_date && (
-                    <span className="flex items-center gap-2">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <span className="flex items-center gap-1.5 sm:gap-2">
+                      <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
                       {new Date(gallery.event_date).toLocaleDateString("en-US", {
                         year: "numeric",
-                        month: "long",
+                        month: "short",
                         day: "numeric",
                       })}
                     </span>
                   )}
-                  <span className="flex items-center gap-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <span className="flex items-center gap-1.5 sm:gap-2">
+                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                     {existingPhotos.length} {existingPhotos.length === 1 ? 'photo' : 'photos'}
@@ -296,14 +296,13 @@ export default function AdminGalleryUploadPage() {
               <p className="text-[#78716c] mt-1">Add images to this gallery</p>
             </div>
 
-            <div className="p-6 space-y-6">
+            <div className={`p-4 sm:p-6 space-y-4 sm:space-y-6`}>
               {/* Drag & Drop Zone */}
               <label
-                className={`relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-16 text-center transition-all cursor-pointer ${
-                  dragActive
+                className={`relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 sm:p-16 text-center transition-all cursor-pointer ${dragActive
                     ? "border-[#c67b5c] bg-[#c67b5c]/5"
                     : "border-[#e7e5e4] hover:border-[#c67b5c]/60 hover:bg-[#fafaf9]"
-                }`}
+                  }`}
                 onDragOver={(e) => {
                   e.preventDefault();
                   setDragActive(true);
@@ -358,12 +357,12 @@ export default function AdminGalleryUploadPage() {
                         key={index}
                         className="group relative overflow-hidden rounded-xl border border-[#e7e5e4] bg-[#fafaf9]"
                       >
-                        <div className="relative h-48 w-full">
+                        <div className="relative h-32 sm:h-48 w-full">
                           <Image
                             src={item.preview}
                             alt="Preview"
                             fill
-                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                             className="object-cover transition-transform duration-300 group-hover:scale-105"
                           />
                         </div>
@@ -437,19 +436,19 @@ export default function AdminGalleryUploadPage() {
                       key={photo.id}
                       className="group relative overflow-hidden rounded-xl border border-[#e7e5e4] bg-[#fafaf9] hover:shadow-lg transition-all duration-300"
                     >
-                      <div className="relative h-48 w-full">
+                      <div className="relative h-32 sm:h-48 w-full">
                         <Image
                           src={photo.image_url}
                           alt={photo.name}
                           fill
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                           className="object-cover transition-transform duration-300 group-hover:scale-105"
                         />
                       </div>
-                      
+
                       {/* Hover overlay */}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                      
+
                       {/* Delete button */}
                       <button
                         onClick={() => deletePhoto(photo.id, photo.name, photo.public_id)}

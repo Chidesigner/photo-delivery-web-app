@@ -72,7 +72,7 @@ export default function CreateGalleryPage() {
           borderRadius: '12px',
         }
       });
-      
+
       router.push(`/admin/galleries/${data.id}/upload`);
     } catch (err) {
       console.error(err);
@@ -93,35 +93,35 @@ export default function CreateGalleryPage() {
       <div className="min-h-screen bg-[#fafaf9]">
         {/* Header */}
         <div className="bg-white border-b border-[#e7e5e4]">
-          <div className="max-w-3xl mx-auto px-6 md:px-12 py-8">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 md:px-12 py-6 sm:py-8">
             <button
               onClick={() => router.push("/admin/galleries")}
-              className="flex items-center gap-2 text-[#78716c] hover:text-[#c67b5c] transition-colors mb-6"
+              className="flex items-center gap-2 text-sm sm:text-base text-[#78716c] hover:text-[#c67b5c] transition-colors mb-4 sm:mb-6"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
               Back to Galleries
             </button>
 
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#c67b5c] to-[#8b9e87] flex items-center justify-center">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-[#c67b5c] to-[#8b9e87] flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
               </div>
               <div>
-                <h1 className="text-3xl font-light text-[#1c1917]">Create New Gallery</h1>
-                <p className="text-[#78716c] mt-1">Set up a private gallery for your client</p>
+                <h1 className="text-2xl sm:text-3xl font-light text-[#1c1917] truncate">New Gallery</h1>
+                <p className="text-[#78716c] text-xs sm:text-sm mt-0.5">Private gallery for your client</p>
               </div>
             </div>
           </div>
         </div>
 
         {/* Form */}
-        <div className="max-w-3xl mx-auto px-6 md:px-12 py-12">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 md:px-12 py-8 sm:py-12">
           <div className="bg-white rounded-2xl border border-[#e7e5e4] shadow-sm overflow-hidden">
-            <div className="p-8 space-y-6">
+            <div className="p-5 sm:p-8 space-y-6">
               {/* Event Name */}
               <div>
                 <label className="block text-sm font-medium text-[#1c1917] mb-2">
@@ -184,14 +184,12 @@ export default function CreateGalleryPage() {
                   <button
                     type="button"
                     onClick={() => setPaid(!paid)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      paid ? 'bg-[#059669]' : 'bg-[#e7e5e4]'
-                    }`}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${paid ? 'bg-[#059669]' : 'bg-[#e7e5e4]'
+                      }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        paid ? 'translate-x-6' : 'translate-x-1'
-                      }`}
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${paid ? 'translate-x-6' : 'translate-x-1'
+                        }`}
                     />
                   </button>
                 </div>
@@ -206,7 +204,7 @@ export default function CreateGalleryPage() {
                   <div className="text-sm text-[#1c1917]">
                     <p className="font-medium mb-1">What happens next?</p>
                     <p className="text-[#78716c]">
-                      After creating the gallery, you'll be taken to the upload page where you can add photos. 
+                      After creating the gallery, you'll be taken to the upload page where you can add photos.
                       Share the gallery link with your client so they can access their photos.
                     </p>
                   </div>
@@ -236,7 +234,7 @@ export default function CreateGalleryPage() {
                     </span>
                   )}
                 </button>
-                
+
                 <button
                   type="button"
                   onClick={() => router.push("/admin/galleries")}
