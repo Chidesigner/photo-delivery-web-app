@@ -81,6 +81,9 @@ export default function ClientGalleryViewPage() {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [viewerLoaded, setViewerLoaded] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [isZipping, setIsZipping] = useState(false);
+  const [downloadingInvoice, setDownloadingInvoice] = useState(false);
   
   // New state for pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -174,6 +177,9 @@ export default function ClientGalleryViewPage() {
       return;
     }
 
+    if (downloadingId === photo.id) return;
+    setDownloadingId(photo.id);
+
     try {
       const response = await fetch(getFullQualityUrl(photo.image_url));
       const blob = await response.blob();
@@ -187,8 +193,10 @@ export default function ClientGalleryViewPage() {
       });
     } catch {
       toast.error("Failed to download photo");
+    } finally {
+      setDownloadingId(null);
     }
-  };
+  }; 
 
   const downloadSelected = async () => {
     if (!gallery?.paid) {
@@ -208,6 +216,7 @@ export default function ClientGalleryViewPage() {
 
     const selectedPhotosList = photos.filter(p => selectedPhotos.has(p.id));
 
+    setIsZipping(true);
     toast.loading("Preparing download...", {
       id: "zip",
       style: {
@@ -240,6 +249,8 @@ export default function ClientGalleryViewPage() {
       setSelectionMode(false);
     } catch {
       toast.error("Failed to download photos", { id: "zip" });
+    } finally {
+      setIsZipping(false);
     }
   };
 
@@ -259,6 +270,7 @@ export default function ClientGalleryViewPage() {
 
     if (photos.length === 0) return;
 
+    setIsZipping(true);
     toast.loading("Preparing download...", {
       id: "zip",
       style: {
@@ -289,14 +301,17 @@ export default function ClientGalleryViewPage() {
       });
     } catch {
       toast.error("Failed to download gallery", { id: "zip" });
+    } finally {
+      setIsZipping(false);
     }
   };
 
   /* Invoice Download */
   const downloadInvoice = () => {
     if (!invoice) return;
-
-    const invoiceContent = `
+    setDownloadingInvoice(true);
+    try {
+      const invoiceContent = `
 ================================================================================
                               INVOICE
 ================================================================================
@@ -338,16 +353,19 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
 ================================================================================
 `;
 
-    const blob = new Blob([invoiceContent], { type: 'text/plain' });
-    saveAs(blob, `Invoice-${invoice.invoice_number}.txt`);
-    toast.success("Invoice downloaded!", {
-      style: {
-        background: '#059669',
-        color: '#fff',
-        borderRadius: '12px',
-      }
-    });
-  };
+      const blob = new Blob([invoiceContent], { type: 'text/plain' });
+      saveAs(blob, `Invoice-${invoice.invoice_number}.txt`);
+      toast.success("Invoice downloaded!", {
+        style: {
+          background: '#059669',
+          color: '#fff',
+          borderRadius: '12px',
+        }
+      });
+    } finally {
+      setDownloadingInvoice(false);
+    }
+  }; 
 
   /* Selection */
   const togglePhotoSelection = (photoId: string) => {
@@ -675,14 +693,25 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
                 <>
                   <button
                     onClick={downloadSelected}
-                    disabled={selectedPhotos.size === 0}
-                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-[#c67b5c] text-white rounded-lg sm:rounded-xl hover:bg-[#b36a4d] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm whitespace-nowrap flex-shrink-0"
+                    disabled={selectedPhotos.size === 0 || isZipping}
+                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-[#c67b5c] text-white rounded-lg sm:rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm whitespace-nowrap flex-shrink-0"
                   >
-                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                    Download ({selectedPhotos.size})
-                  </button>
+                    {isZipping ? (
+                      <>
+                        <div className="w-4 h-4 relative">
+                          <div className="absolute inset-0 border-2 border-transparent border-t-white rounded-full animate-spin" />
+                        </div>
+                        <span>Preparing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Download ({selectedPhotos.size})
+                      </>
+                    )}
+                  </button> 
                   <button
                     onClick={() => {
                       setSelectionMode(false);
@@ -706,13 +735,25 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
                   </button>
                   <button
                     onClick={downloadAll}
-                    className="group flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-[#2d2a26] text-white rounded-lg sm:rounded-xl hover:bg-[#3d3731] transition-all duration-300 shadow-lg text-sm whitespace-nowrap flex-shrink-0"
+                    disabled={isZipping}
+                    className="group flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-[#2d2a26] text-white rounded-lg sm:rounded-xl transition-all duration-300 shadow-lg text-sm whitespace-nowrap flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <svg className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:translate-y-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                    Download All
-                  </button>
+                    {isZipping ? (
+                      <>
+                        <div className="w-4 h-4 relative">
+                          <div className="absolute inset-0 border-2 border-transparent border-t-white rounded-full animate-spin" />
+                        </div>
+                        <span>Preparing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:translate-y-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Download All
+                      </>
+                    )}
+                  </button> 
                 </>
               )}
             </div>
@@ -787,13 +828,21 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
                         e.stopPropagation();
                         downloadPhoto(photo);
                       }}
-                      className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300 bg-white/95 backdrop-blur-sm text-[#2d2a26] p-2.5 rounded-lg hover:bg-white hover:scale-110 shadow-lg"
+                      disabled={downloadingId === photo.id}
+                      title={downloadingId === photo.id ? 'Preparing download...' : 'Download'}
+                      className={`absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300 bg-white/95 backdrop-blur-sm text-[#2d2a26] p-2.5 rounded-lg shadow-lg ${downloadingId === photo.id ? 'cursor-wait opacity-100 scale-100' : 'hover:bg-white hover:scale-110'}`}
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
+                      {downloadingId === photo.id ? (
+                        <div className="w-5 h-5 relative">
+                          <div className="absolute inset-0 border-2 border-transparent border-t-[#c67b5c] rounded-full animate-spin" />
+                        </div>
+                      ) : (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                      )}
                     </button>
-                  )}
+                  )} 
 
                   {/* Photo Number */}
                   <div className="absolute bottom-3 left-3 opacity-0 group-hover:opacity-100 transition-all duration-300">
@@ -1065,12 +1114,24 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
               {/* Download Button */}
               <button
                 onClick={downloadInvoice}
-                className="w-full flex items-center justify-center gap-3 px-8 py-4 bg-[#2d2a26] text-white rounded-2xl hover:bg-[#3d3731] transition-all duration-300 hover:scale-[1.02] font-medium shadow-lg"
+                disabled={downloadingInvoice}
+                className={`w-full flex items-center justify-center gap-3 px-8 py-4 bg-[#2d2a26] text-white rounded-2xl transition-all duration-300 font-medium shadow-lg ${downloadingInvoice ? 'cursor-wait' : 'hover:bg-[#3d3731] hover:scale-[1.02]'}`}
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                Download Invoice
+                {downloadingInvoice ? (
+                  <>
+                    <div className="w-5 h-5 relative">
+                      <div className="absolute inset-0 border-2 border-transparent border-t-white rounded-full animate-spin" />
+                    </div>
+                    <span>Preparing...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Download Invoice
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -1243,13 +1304,25 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
                 </div>
                 <button
                   onClick={() => downloadPhoto(activePhoto)}
-                  className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 sm:px-8 py-3 sm:py-4 bg-white text-[#2d2a26] rounded-2xl hover:bg-white/90 transition-all duration-300 hover:scale-105 font-medium shadow-2xl"
+                  disabled={downloadingId === activePhoto.id}
+                  className={`w-full sm:w-auto flex items-center justify-center gap-3 px-6 sm:px-8 py-3 sm:py-4 bg-white text-[#2d2a26] rounded-2xl transition-all duration-300 font-medium shadow-2xl ${downloadingId === activePhoto.id ? 'cursor-wait' : 'hover:bg-white/90 hover:scale-105'}`}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Download
-                </button>
+                  {downloadingId === activePhoto.id ? (
+                    <>
+                      <div className="w-5 h-5 relative">
+                        <div className="absolute inset-0 border-2 border-transparent border-t-[#c67b5c] rounded-full animate-spin" />
+                      </div>
+                      <span>Preparing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      Download
+                    </>
+                  )}
+                </button> 
               </div>
             </div>
           </div>
