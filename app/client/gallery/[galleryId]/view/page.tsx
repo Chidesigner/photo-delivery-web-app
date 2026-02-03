@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
@@ -40,6 +40,29 @@ type Invoice = {
   issue_date: string;
 };
 
+// Cloudinary URL transformer helper
+const getCloudinaryUrl = (url: string, transformation: string) => {
+  if (!url || !url.includes('cloudinary.com')) return url;
+  
+  // Insert transformation after '/upload/'
+  return url.replace('/upload/', `/upload/${transformation}/`);
+};
+
+// Get optimized thumbnail
+const getThumbnailUrl = (url: string) => {
+  return getCloudinaryUrl(url, 'w_800,h_800,c_limit,q_auto,f_auto');
+};
+
+// Get full quality image
+const getFullQualityUrl = (url: string) => {
+  return getCloudinaryUrl(url, 'q_auto,f_auto');
+};
+
+// Get hero image (larger but still optimized)
+const getHeroUrl = (url: string) => {
+  return getCloudinaryUrl(url, 'w_1920,h_1080,c_limit,q_auto:good,f_auto');
+};
+
 export default function ClientGalleryViewPage() {
   const { galleryId } = useParams<{ galleryId: string }>();
 
@@ -57,6 +80,10 @@ export default function ClientGalleryViewPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  
+  // New state for pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const photosPerPage = 20;
 
   const slideshowInterval = useRef<number | null>(null);
   const imageContainerRef = useRef<HTMLDivElement>(null);
@@ -106,6 +133,31 @@ export default function ClientGalleryViewPage() {
     if (galleryId) loadGallery();
   }, [galleryId]);
 
+  // Calculate pagination
+  const totalPages = Math.ceil(photos.length / photosPerPage);
+  const startIndex = (currentPage - 1) * photosPerPage;
+  const endIndex = startIndex + photosPerPage;
+
+  // Scroll to top when page changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [currentPage]);
+
+  // Preload adjacent images in lightbox
+  useEffect(() => {
+    if (activeIndex === null) return;
+
+    // Preload next and previous images
+    const preloadIndexes = [activeIndex - 1, activeIndex + 1].filter(
+      i => i >= 0 && i < photos.length
+    );
+
+    preloadIndexes.forEach(i => {
+      const img = new window.Image();
+      img.src = getFullQualityUrl(photos[i].image_url);
+    });
+  }, [activeIndex, photos]);
+
   /* Download logic */
   const downloadPhoto = async (photo: Photo) => {
     if (!gallery?.paid) {
@@ -122,7 +174,7 @@ export default function ClientGalleryViewPage() {
     }
 
     try {
-      const response = await fetch(photo.image_url);
+      const response = await fetch(getFullQualityUrl(photo.image_url));
       const blob = await response.blob();
       saveAs(blob, photo.name);
       toast.success("Download started", {
@@ -168,7 +220,7 @@ export default function ClientGalleryViewPage() {
 
     try {
       for (const photo of selectedPhotosList) {
-        const response = await fetch(photo.image_url);
+        const response = await fetch(getFullQualityUrl(photo.image_url));
         const blob = await response.blob();
         folder?.file(photo.name, blob);
       }
@@ -219,7 +271,7 @@ export default function ClientGalleryViewPage() {
 
     try {
       for (const photo of photos) {
-        const response = await fetch(photo.image_url);
+        const response = await fetch(getFullQualityUrl(photo.image_url));
         const blob = await response.blob();
         folder?.file(photo.name, blob);
       }
@@ -329,14 +381,14 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
   };
 
   const zoomIn = () => {
-    setZoomLevel(prev => Math.min(prev + 0.5, 3)); // Max 3x zoom
+    setZoomLevel(prev => Math.min(prev + 0.5, 3));
   };
 
   const zoomOut = () => {
     setZoomLevel(prev => {
-      const newZoom = Math.max(prev - 0.5, 1); // Min 1x zoom
+      const newZoom = Math.max(prev - 0.5, 1);
       if (newZoom === 1) {
-        setPosition({ x: 0, y: 0 }); // Reset position when fully zoomed out
+        setPosition({ x: 0, y: 0 });
       }
       return newZoom;
     });
@@ -493,19 +545,23 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
     );
   }
 
+  // Get visible photos for current page
+  const visiblePhotos = photos.slice(startIndex, endIndex);
+
   return (
     <div className="min-h-screen bg-[#fafaf9]">
       {/* IMMERSIVE HERO SECTION */}
       {photos.length > 0 && (
         <div className="relative h-screen w-full flex items-center justify-center overflow-hidden">
-          {/* Hero Background */}
+          {/* Hero Background - Using optimized hero image */}
           <div className="absolute inset-0">
             <Image
-              src={photos[0].image_url}
+              src={getHeroUrl(photos[0].image_url)}
               alt={gallery.event_name}
               fill
               className="object-cover scale-105"
               priority
+              quality={85}
             />
             <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/80" />
             <div className="absolute inset-0 bg-gradient-to-r from-black/30 to-transparent" />
@@ -658,35 +714,44 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
       </div>
 
 
-      {/* PREMIUM MASONRY GALLERY - Pixieset Style */}
+      {/* PREMIUM MASONRY GALLERY - Pixieset Style with Progressive Loading */}
       <div className="max-w-[1800px] mx-auto px-6 md:px-12 py-16">
         <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-5 space-y-5">
-          {photos.map((photo, i) => {
+          {visiblePhotos.map((photo, i) => {
             const isSelected = selectedPhotos.has(photo.id);
+            const actualIndex = startIndex + i; // Get the actual index in the full photos array
 
             return (
               <div
                 key={photo.id}
-                className={`relative group break-inside-avoid cursor-pointer transition-all duration-500 ${imageLoaded[i] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+                className={`relative group break-inside-avoid cursor-pointer transition-all duration-500 ${imageLoaded[actualIndex] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
                   } ${isSelected && selectionMode ? 'ring-4 ring-[#c67b5c] ring-offset-4 rounded-xl' : ''}`}
                 onClick={() => {
                   if (selectionMode) {
                     togglePhotoSelection(photo.id);
                   } else {
-                    openViewer(i, false);
+                    openViewer(actualIndex, false);
                   }
                 }}
                 style={{ transitionDelay: `${Math.min(i * 50, 500)}ms` }}
               >
-                {/* Photo Container */}
+                {/* Photo Container with Skeleton */}
                 <div className="relative overflow-hidden rounded-xl bg-[#e7e5e4] shadow-md hover:shadow-2xl transition-all duration-500">
+                  {/* Skeleton loader */}
+                  {!imageLoaded[actualIndex] && (
+                    <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-[#e7e5e4] via-[#d6d3d1] to-[#e7e5e4] bg-[length:200%_100%]" 
+                         style={{ animation: 'shimmer 1.5s infinite' }} />
+                  )}
+                  
                   <Image
-                    src={photo.image_url}
+                    src={getThumbnailUrl(photo.image_url)}
                     alt={photo.name}
                     width={800}
                     height={600}
                     className="w-full h-auto transition-transform duration-700 ease-out group-hover:scale-105"
-                    onLoad={() => setImageLoaded(prev => ({ ...prev, [i]: true }))}
+                    onLoad={() => setImageLoaded(prev => ({ ...prev, [actualIndex]: true }))}
+                    loading="lazy"
+                    quality={80}
                   />
 
                   {/* Hover Overlay */}
@@ -726,7 +791,7 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
                   {/* Photo Number */}
                   <div className="absolute bottom-3 left-3 opacity-0 group-hover:opacity-100 transition-all duration-300">
                     <span className="text-white text-xs font-medium bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full">
-                      {i + 1} / {photos.length}
+                      {actualIndex + 1} / {photos.length}
                     </span>
                   </div>
 
@@ -743,6 +808,106 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
             );
           })}
         </div>
+
+        {/* Elegant Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex flex-col items-center gap-6 py-12 mt-8">
+            {/* Page Info */}
+            <div className="flex items-center gap-3 text-[#78716c] text-sm font-light">
+              <div className="w-12 h-px bg-[#e7e5e4]" />
+              <span>
+                Page {currentPage} of {totalPages} • Showing {startIndex + 1}-{Math.min(endIndex, photos.length)} of {photos.length}
+              </span>
+              <div className="w-12 h-px bg-[#e7e5e4]" />
+            </div>
+
+            {/* Navigation Buttons */}
+            <div className="flex items-center gap-3">
+              {/* Previous Button */}
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="group flex items-center gap-2 px-6 py-3 bg-white border border-[#e7e5e4] text-[#2d2a26] rounded-xl hover:bg-[#fafaf9] hover:border-[#c67b5c] transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-[#e7e5e4] shadow-sm"
+              >
+                <svg className="w-5 h-5 transition-transform group-hover:-translate-x-1 group-disabled:translate-x-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                <span className="font-medium">Previous</span>
+              </button>
+
+              {/* Page Numbers */}
+              <div className="flex items-center gap-2">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => {
+                  // Show first page, last page, current page, and pages around current
+                  const showPage = 
+                    pageNum === 1 || 
+                    pageNum === totalPages || 
+                    (pageNum >= currentPage - 1 && pageNum <= currentPage + 1);
+                  
+                  // Show ellipsis
+                  const showEllipsisBefore = pageNum === currentPage - 2 && currentPage > 3;
+                  const showEllipsisAfter = pageNum === currentPage + 2 && currentPage < totalPages - 2;
+
+                  if (showEllipsisBefore || showEllipsisAfter) {
+                    return (
+                      <span key={pageNum} className="px-2 text-[#78716c]">
+                        •••
+                      </span>
+                    );
+                  }
+
+                  if (!showPage) return null;
+
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-10 h-10 rounded-lg font-medium transition-all duration-300 ${
+                        currentPage === pageNum
+                          ? 'bg-[#c67b5c] text-white shadow-lg scale-110'
+                          : 'bg-white border border-[#e7e5e4] text-[#2d2a26] hover:bg-[#fafaf9] hover:border-[#c67b5c]'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Next Button */}
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="group flex items-center gap-2 px-6 py-3 bg-white border border-[#e7e5e4] text-[#2d2a26] rounded-xl hover:bg-[#fafaf9] hover:border-[#c67b5c] transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-[#e7e5e4] shadow-sm"
+              >
+                <span className="font-medium">Next</span>
+                <svg className="w-5 h-5 transition-transform group-hover:translate-x-1 group-disabled:translate-x-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Quick Jump (optional - only show if many pages) */}
+            {totalPages > 5 && (
+              <div className="flex items-center gap-3 text-sm">
+                <span className="text-[#78716c]">Jump to page:</span>
+                <input
+                  type="number"
+                  min="1"
+                  max={totalPages}
+                  value={currentPage}
+                  onChange={(e) => {
+                    const page = parseInt(e.target.value);
+                    if (page >= 1 && page <= totalPages) {
+                      setCurrentPage(page);
+                    }
+                  }}
+                  className="w-16 px-3 py-2 border border-[#e7e5e4] rounded-lg text-center focus:outline-none focus:border-[#c67b5c] transition-colors"
+                />
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
 
@@ -1000,7 +1165,7 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
               )}
             </div>
 
-            {/* Main Image - With Zoom and Pan */}
+            {/* Main Image - With Zoom and Pan - Using full quality */}
             <div 
               ref={imageContainerRef}
               className="relative w-full h-full max-w-[90vw] max-h-[85vh] mx-auto overflow-hidden"
@@ -1025,11 +1190,12 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
                 }}
               >
                 <Image
-                  src={activePhoto.image_url}
+                  src={getFullQualityUrl(activePhoto.image_url)}
                   alt={activePhoto.name}
                   fill
                   className="object-contain pointer-events-none select-none"
                   priority
+                  quality={95}
                   draggable={false}
                 />
               </div>
@@ -1066,6 +1232,18 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
           </div>
         </div>
       )}
+
+      {/* Add shimmer animation to global styles */}
+      <style jsx global>{`
+        @keyframes shimmer {
+          0% {
+            background-position: -200% 0;
+          }
+          100% {
+            background-position: 200% 0;
+          }
+        }
+      `}</style>
     </div>
   );
 }
