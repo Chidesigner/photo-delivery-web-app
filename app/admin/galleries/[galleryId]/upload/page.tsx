@@ -3,7 +3,7 @@
 import AdminGuard from "@/components/AdminGaurd";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Image from "next/image";
+import OptimizedImage from "@/components/OptimizedImage";
 import { supabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
 
@@ -93,69 +93,68 @@ export default function AdminGalleryUploadPage() {
 
   /* Upload images to Cloudinary + DB */
   const uploadImages = async () => {
-  if (files.length === 0) {
-    toast.error("Please select images to upload");
-    return;
-  }
-
-  setLoading(true);
-
-  // ✅ Add this: Show message for large files
-  const totalSize = files.reduce((sum, f) => sum + f.file.size, 0);
-  const totalSizeMB = (totalSize / 1024 / 1024).toFixed(2);
-  
-  if (totalSize > 50_000_000) { // If total > 50MB
-    toast.loading(`Uploading ${totalSizeMB}MB... This may take a minute`, {
-      id: "large-upload",
-      duration: 10000,
-    });
-  }
-
-  for (const item of files) {
-    try {
-      const formData = new FormData();
-      formData.append("file", item.file);
-      formData.append("galleryId", galleryId);
-
-      const res = await fetch("/api/upload-photo", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        toast.error(`Failed to upload ${item.file.name}`);
-        setLoading(false);
-        return;
-      }
-
-      const publicUrl = data.url;
-      const publicId = data.public_id;
-
-      const { error: dbError } = await supabase.from("photos").insert({
-        gallery_id: galleryId,
-        name: item.file.name,
-        image_url: publicUrl,
-        public_id: publicId,
-      });
-
-      if (dbError) {
-        console.error(dbError);
-        toast.error(`Uploaded but failed to save record: ${item.file.name}`);
-      }
-    } catch (err: any) {
-      console.error(err);
-      toast.error(`Failed to upload ${item.file.name}`);
+    if (files.length === 0) {
+      toast.error("Please select images to upload");
+      return;
     }
-  }
 
-  toast.dismiss("large-upload"); // ✅ Dismiss loading message
-  toast.success("Photos uploaded successfully!");
-  setFiles([]);
-  fetchPhotos();
-  setLoading(false);
-};
+    setLoading(true);
+    let successCount = 0;
+
+    for (const item of files) {
+      try {
+        const formData = new FormData();
+        formData.append("file", item.file);
+        formData.append("galleryId", galleryId);
+
+        const res = await fetch("/api/upload-photo", {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          toast.error(`Failed to upload ${item.file.name}`);
+          continue;
+        }
+
+        const publicUrl = data.url;
+        const publicId = data.public_id;
+
+        const { error: dbError } = await supabase.from("photos").insert({
+          gallery_id: galleryId,
+          name: item.file.name,
+          image_url: publicUrl,
+          public_id: publicId,
+        });
+
+        if (dbError) {
+          console.error(dbError);
+          toast.error(`Uploaded but failed to save record: ${item.file.name}`);
+        } else {
+          successCount++;
+        }
+      } catch (err: any) {
+        console.error(err);
+        toast.error(`Failed to upload ${item.file.name}`);
+      }
+    }
+
+    if (successCount > 0) {
+      toast.success(`${successCount} photo${successCount > 1 ? 's' : ''} uploaded successfully!`, {
+        style: {
+          background: '#059669',
+          color: '#fff',
+          borderRadius: '12px',
+        }
+      });
+    }
+
+    setFiles([]);
+    fetchPhotos();
+    setLoading(false);
+  };
 
   /* Delete photo from Cloudinary + DB */
   const deletePhoto = async (photoId: string, photoName: string, publicId?: string) => {
@@ -359,12 +358,13 @@ export default function AdminGalleryUploadPage() {
                         className="group relative overflow-hidden rounded-xl border border-[#e7e5e4] bg-[#fafaf9]"
                       >
                         <div className="relative h-32 sm:h-48 w-full">
-                          <Image
+                          <OptimizedImage
                             src={item.preview}
                             alt="Preview"
                             fill
                             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                             className="object-cover transition-transform duration-300 group-hover:scale-105"
+                            quality={70}
                           />
                         </div>
                         <button
@@ -438,12 +438,13 @@ export default function AdminGalleryUploadPage() {
                       className="group relative overflow-hidden rounded-xl border border-[#e7e5e4] bg-[#fafaf9] hover:shadow-lg transition-all duration-300"
                     >
                       <div className="relative h-32 sm:h-48 w-full">
-                        <Image
+                        <OptimizedImage
                           src={photo.image_url}
                           alt={photo.name}
                           fill
                           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                           className="object-cover transition-transform duration-300 group-hover:scale-105"
+                          quality={75}
                         />
                       </div>
 

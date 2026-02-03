@@ -53,8 +53,13 @@ export default function ClientGalleryViewPage() {
   const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
   const [selectionMode, setSelectionMode] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [isDragging, setIsDragging] = useState(false);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   const slideshowInterval = useRef<number | null>(null);
+  const imageContainerRef = useRef<HTMLDivElement>(null);
   const activePhoto = activeIndex !== null ? photos[activeIndex] : null;
 
   /* Load gallery + photos + invoice */
@@ -313,15 +318,85 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
   const closeViewer = () => {
     setActiveIndex(null);
     setIsSlideshow(false);
+    resetZoom();
+  };
+
+  /* Zoom and Pan Functions */
+  const resetZoom = () => {
+    setZoomLevel(1);
+    setPosition({ x: 0, y: 0 });
+    setIsDragging(false);
+  };
+
+  const zoomIn = () => {
+    setZoomLevel(prev => Math.min(prev + 0.5, 3)); // Max 3x zoom
+  };
+
+  const zoomOut = () => {
+    setZoomLevel(prev => {
+      const newZoom = Math.max(prev - 0.5, 1); // Min 1x zoom
+      if (newZoom === 1) {
+        setPosition({ x: 0, y: 0 }); // Reset position when fully zoomed out
+      }
+      return newZoom;
+    });
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (zoomLevel > 1) {
+      setIsDragging(true);
+      setDragStart({
+        x: e.clientX - position.x,
+        y: e.clientY - position.y
+      });
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging && zoomLevel > 1) {
+      setPosition({
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y
+      });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (zoomLevel > 1 && e.touches.length === 1) {
+      setIsDragging(true);
+      setDragStart({
+        x: e.touches[0].clientX - position.x,
+        y: e.touches[0].clientY - position.y
+      });
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (isDragging && zoomLevel > 1 && e.touches.length === 1) {
+      setPosition({
+        x: e.touches[0].clientX - dragStart.x,
+        y: e.touches[0].clientY - dragStart.y
+      });
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
   };
 
   const nextPhoto = () => {
+    resetZoom();
     setActiveIndex((prev) =>
       prev !== null && prev < photos.length - 1 ? prev + 1 : prev
     );
   };
 
   const prevPhoto = () => {
+    resetZoom();
     setActiveIndex((prev) => (prev !== null && prev > 0 ? prev - 1 : prev));
   };
 
@@ -884,29 +959,102 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
               </button>
             )}
 
-            {/* Main Image - Full uncropped view */}
-            <div className="relative w-full h-full max-w-[90vw] max-h-[85vh] mx-auto">
-              <Image
-                src={activePhoto.image_url}
-                alt={activePhoto.name}
-                fill
-                className="object-contain"
-                priority
-              />
+            {/* Zoom Controls */}
+            <div className="absolute top-6 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-3 bg-white/10 backdrop-blur-sm rounded-2xl z-50">
+              <button
+                onClick={zoomOut}
+                disabled={zoomLevel <= 1}
+                className="text-white/70 hover:text-white p-2 hover:bg-white/10 rounded-lg transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Zoom Out"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
+                </svg>
+              </button>
+              
+              <div className="px-3 py-1 text-white/90 text-sm font-medium min-w-[60px] text-center">
+                {Math.round(zoomLevel * 100)}%
+              </div>
+              
+              <button
+                onClick={zoomIn}
+                disabled={zoomLevel >= 3}
+                className="text-white/70 hover:text-white p-2 hover:bg-white/10 rounded-lg transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Zoom In"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                </svg>
+              </button>
+
+              {zoomLevel > 1 && (
+                <button
+                  onClick={resetZoom}
+                  className="ml-2 text-white/70 hover:text-white p-2 hover:bg-white/10 rounded-lg transition-all duration-300"
+                  title="Reset Zoom"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            {/* Main Image - With Zoom and Pan */}
+            <div 
+              ref={imageContainerRef}
+              className="relative w-full h-full max-w-[90vw] max-h-[85vh] mx-auto overflow-hidden"
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              style={{ 
+                cursor: zoomLevel > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'
+              }}
+            >
+              <div
+                style={{
+                  transform: `scale(${zoomLevel}) translate(${position.x / zoomLevel}px, ${position.y / zoomLevel}px)`,
+                  transition: isDragging ? 'none' : 'transform 0.2s ease-out',
+                  width: '100%',
+                  height: '100%',
+                  position: 'relative'
+                }}
+              >
+                <Image
+                  src={activePhoto.image_url}
+                  alt={activePhoto.name}
+                  fill
+                  className="object-contain pointer-events-none select-none"
+                  priority
+                  draggable={false}
+                />
+              </div>
             </div>
 
             {/* Bottom Bar */}
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-10">
-              <div className="max-w-7xl mx-auto flex justify-between items-end">
-                <div className="text-white space-y-2">
-                  <p className="text-sm text-white/50 font-light tracking-wider uppercase">
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-6 sm:p-10">
+              <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+                <div className="text-white space-y-2 flex-1">
+                  <p className="text-xs sm:text-sm text-white/50 font-light tracking-wider uppercase">
                     {activeIndex! + 1} of {photos.length}
                   </p>
-                  <p className="text-2xl font-light">{activePhoto.name}</p>
+                  <p className="text-lg sm:text-2xl font-light truncate">{activePhoto.name}</p>
+                  {zoomLevel > 1 && (
+                    <p className="text-xs text-white/60 flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" />
+                      </svg>
+                      Drag to pan • Pinch or use buttons to zoom
+                    </p>
+                  )}
                 </div>
                 <button
                   onClick={() => downloadPhoto(activePhoto)}
-                  className="flex items-center gap-3 px-8 py-4 bg-white text-[#2d2a26] rounded-2xl hover:bg-white/90 transition-all duration-300 hover:scale-105 font-medium shadow-2xl"
+                  className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 sm:px-8 py-3 sm:py-4 bg-white text-[#2d2a26] rounded-2xl hover:bg-white/90 transition-all duration-300 hover:scale-105 font-medium shadow-2xl"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
