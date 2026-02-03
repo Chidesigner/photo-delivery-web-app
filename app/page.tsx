@@ -1,10 +1,69 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { supabase } from "@/lib/supabase"
 import toast from "react-hot-toast"
+
+// Featured Portfolio Component
+function FeaturedPortfolio() {
+  const [photos, setPhotos] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchFeatured = async () => {
+      const { data } = await supabase
+        .from("portfolio")
+        .select("*")
+        .eq("is_featured", true)
+        .order("display_order", { ascending: true })
+        .limit(9);
+
+      setPhotos(data || []);
+    };
+
+    fetchFeatured();
+  }, []);
+
+  if (photos.length === 0) {
+    return (
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[1, 2, 3, 4, 5, 6].map((item) => (
+          <div
+            key={item}
+            className="group relative aspect-square rounded-2xl bg-gradient-to-br from-[#c67b5c]/20 to-[#8b9e87]/20 overflow-hidden"
+          >
+            <div className="absolute inset-0 flex items-center justify-center">
+              <svg className="w-16 h-16 text-[#78716c]/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="columns-1 sm:columns-2 lg:columns-3 gap-6 space-y-6">
+      {photos.map((photo) => (
+        <div
+          key={photo.id}
+          className="group relative break-inside-avoid overflow-hidden rounded-2xl bg-[#e7e5e4]/20 hover:shadow-xl transition-all duration-300"
+        >
+          <Image
+            src={photo.image_url}
+            alt={photo.title}
+            width={800}
+            height={600}
+            className="w-full h-auto transition-transform duration-700 group-hover:scale-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function HomePage() {
   const router = useRouter()
@@ -313,7 +372,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* PORTFOLIO SECTION */}
+      {/* PORTFOLIO SECTION - UPDATED */}
       <section id="portfolio" className="py-32 px-6 md:px-12 bg-[#fafaf9]">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-20">
@@ -321,32 +380,25 @@ export default function HomePage() {
               Our Work
             </span>
             <h2 className="text-5xl md:text-6xl font-light text-[#1c1917] mb-6">
-              Recent Projects
+              Featured Work
             </h2>
             <p className="text-xl text-[#78716c] max-w-2xl mx-auto">
               A glimpse of the memories we've captured
             </p>
           </div>
 
-          {/* Placeholder for portfolio - you'll add real images later */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3, 4, 5, 6].map((item) => (
-              <div
-                key={item}
-                className="group relative aspect-square rounded-2xl bg-gradient-to-br from-[#c67b5c]/20 to-[#8b9e87]/20 overflow-hidden hover:shadow-xl transition-all duration-300"
-              >
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <svg className="w-16 h-16 text-[#78716c]/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              </div>
-            ))}
-          </div>
+          <FeaturedPortfolio />
 
-          <div className="text-center mt-12">
-            <p className="text-[#78716c] italic">Portfolio images coming soon - add your best work here!</p>
+          <div className="text-center mt-16">
+            <button
+              onClick={() => router.push('/gallery')}
+              className="group inline-flex items-center gap-3 px-8 py-4 bg-[#2d2a26] text-white rounded-xl font-medium text-lg hover:bg-[#3d3731] transition-all duration-300 hover:shadow-xl hover:scale-105"
+            >
+              View Full Gallery
+              <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </button>
           </div>
         </div>
       </section>

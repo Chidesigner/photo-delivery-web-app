@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Menu, X, LayoutDashboard, Images } from "lucide-react"
+import { Menu, X, LayoutDashboard, Images, Camera } from "lucide-react" // ← Added Camera
 import clsx from "clsx"
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -27,9 +27,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [mobileMenuOpen])
 
+  // ✅ UPDATED: Added Portfolio
   const navItems = [
     { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/admin/galleries", label: "Galleries", icon: Images },
+    { href: "/admin/galleries", label: "Client Galleries", icon: Images },
+    { href: "/admin/portfolio", label: "Portfolio", icon: Camera }, // ← NEW
   ]
 
   const navItem = (href: string, label: string, Icon: any, isMobile = false) => {
