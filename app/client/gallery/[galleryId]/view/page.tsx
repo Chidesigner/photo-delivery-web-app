@@ -80,6 +80,7 @@ export default function ClientGalleryViewPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [viewerLoaded, setViewerLoaded] = useState(false);
   
   // New state for pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -363,6 +364,7 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
 
   /* Navigation */
   const openViewer = (index: number, slideshow = false) => {
+    setViewerLoaded(false);
     setActiveIndex(index);
     setIsSlideshow(slideshow);
   };
@@ -489,6 +491,11 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
       }
     };
   }, [isSlideshow, activeIndex]);
+
+  // Reset viewer loading state when switching images in the lightbox
+  useEffect(() => {
+    setViewerLoaded(false);
+  }, [activeIndex]);
 
   /* Payment Status Badge */
   const getPaymentBadge = () => {
@@ -1166,6 +1173,20 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
             </div>
 
             {/* Main Image - With Zoom and Pan - Using full quality */}
+
+            {/* Show loading overlay until the full image finishes loading */}
+            {!viewerLoaded && (
+              <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none">
+                <div className="text-center">
+                  <div className="relative w-20 h-20 mx-auto mb-2">
+                    <div className="absolute inset-0 border-4 border-white/20 rounded-full" />
+                    <div className="absolute inset-0 border-4 border-transparent border-t-white rounded-full animate-spin" />
+                  </div>
+                  <p className="text-white/80 text-sm">Loading image...</p>
+                </div>
+              </div>
+            )}
+
             <div 
               ref={imageContainerRef}
               className="relative w-full h-full max-w-[90vw] max-h-[85vh] mx-auto overflow-hidden"
@@ -1197,6 +1218,8 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
                   priority
                   quality={95}
                   draggable={false}
+                  onLoadingComplete={() => setViewerLoaded(true)}
+                  onError={() => setViewerLoaded(true)}
                 />
               </div>
             </div>
