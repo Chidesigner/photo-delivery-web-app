@@ -48,14 +48,14 @@ const getCloudinaryUrl = (url: string, transformation: string) => {
   return url.replace('/upload/', `/upload/${transformation}/`);
 };
 
-// Get optimized thumbnail
+// Get optimized thumbnail - OPTIMIZED: Reduced from 800x800 to 400x400 (75% less data!)
 const getThumbnailUrl = (url: string) => {
-  return getCloudinaryUrl(url, 'w_800,h_800,c_limit,q_auto,f_auto');
+  return getCloudinaryUrl(url, 'w_400,h_400,c_limit,q_auto:eco,f_auto');
 };
 
 // Get full quality image
 const getFullQualityUrl = (url: string) => {
-  return getCloudinaryUrl(url, 'q_auto,f_auto');
+  return getCloudinaryUrl(url, 'q_auto:best,f_auto');
 };
 
 // Get hero image (larger but still optimized)
@@ -68,6 +68,7 @@ export default function ClientGalleryViewPage() {
 
   const [gallery, setGallery] = useState<Gallery | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
+  const [totalPhotos, setTotalPhotos] = useState(0); // NEW: Track total count
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -84,8 +85,9 @@ export default function ClientGalleryViewPage() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [isZipping, setIsZipping] = useState(false);
   const [downloadingInvoice, setDownloadingInvoice] = useState(false);
+  const [loadingPage, setLoadingPage] = useState(false); // NEW: Loading state for page changes
   
-  // New state for pagination
+  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const photosPerPage = 20;
 
@@ -93,7 +95,32 @@ export default function ClientGalleryViewPage() {
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const activePhoto = activeIndex !== null ? photos[activeIndex] : null;
 
-  /* Load gallery + photos + invoice */
+  /* OPTIMIZED: Load photos for specific page only */
+  const loadPhotosPage = async (page: number) => {
+    setLoadingPage(true);
+    try {
+      const start = (page - 1) * photosPerPage;
+      const end = start + photosPerPage - 1;
+
+      const { data: photosData, error: photosError } = await supabase
+        .from("photos")
+        .select("id, name, image_url")
+        .eq("gallery_id", galleryId)
+        .order("created_at", { ascending: true })
+        .range(start, end);
+
+      if (photosError) throw new Error("Failed to load photos");
+
+      setPhotos(photosData || []);
+      setImageLoaded({}); // Reset loaded state for new page
+    } catch (err: any) {
+      toast.error(err.message || "Failed to load photos");
+    } finally {
+      setLoadingPage(false);
+    }
+  };
+
+  /* OPTIMIZED: Load gallery + photo count (not all photos) + invoice */
   const loadGallery = async () => {
     try {
       const { data: galleryData, error } = await supabase
@@ -106,15 +133,16 @@ export default function ClientGalleryViewPage() {
 
       setGallery(galleryData);
 
-      const { data: photosData, error: photosError } = await supabase
+      // OPTIMIZED: Get total count without fetching all photos
+      const { count } = await supabase
         .from("photos")
-        .select("id, name, image_url")
-        .eq("gallery_id", galleryId)
-        .order("created_at", { ascending: true });
+        .select("*", { count: 'exact', head: true })
+        .eq("gallery_id", galleryId);
 
-      if (photosError) throw new Error("Failed to load photos");
+      setTotalPhotos(count || 0);
 
-      setPhotos(photosData || []);
+      // Load first page of photos
+      await loadPhotosPage(1);
 
       // Fetch invoice
       const { data: invoiceData } = await supabase
@@ -138,12 +166,13 @@ export default function ClientGalleryViewPage() {
   }, [galleryId]);
 
   // Calculate pagination
-  const totalPages = Math.ceil(photos.length / photosPerPage);
-  const startIndex = (currentPage - 1) * photosPerPage;
-  const endIndex = startIndex + photosPerPage;
+  const totalPages = Math.ceil(totalPhotos / photosPerPage);
 
-  // Scroll to top when page changes
+  // OPTIMIZED: Load new page when currentPage changes
   useEffect(() => {
+    if (currentPage > 1) {
+      loadPhotosPage(currentPage);
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentPage]);
 
@@ -151,7 +180,10 @@ export default function ClientGalleryViewPage() {
   useEffect(() => {
     if (activeIndex === null) return;
 
-    // Preload next and previous images
+    // Calculate actual index in full photo set
+    const actualIndex = (currentPage - 1) * photosPerPage + activeIndex;
+
+    // Preload next and previous if they exist in current page
     const preloadIndexes = [activeIndex - 1, activeIndex + 1].filter(
       i => i >= 0 && i < photos.length
     );
@@ -160,7 +192,7 @@ export default function ClientGalleryViewPage() {
       const img = new window.Image();
       img.src = getFullQualityUrl(photos[i].image_url);
     });
-  }, [activeIndex, photos]);
+  }, [activeIndex, photos, currentPage]);
 
   /* Download logic */
   const downloadPhoto = async (photo: Photo) => {
@@ -268,8 +300,9 @@ export default function ClientGalleryViewPage() {
       return;
     }
 
-    if (photos.length === 0) return;
+    if (totalPhotos === 0) return;
 
+    // OPTIMIZED: Fetch ALL photos only when downloading all
     setIsZipping(true);
     toast.loading("Preparing download...", {
       id: "zip",
@@ -279,11 +312,21 @@ export default function ClientGalleryViewPage() {
         borderRadius: '12px',
       }
     });
-    const zip = new JSZip();
-    const folder = zip.folder(gallery.event_name || "gallery");
 
     try {
-      for (const photo of photos) {
+      // Fetch all photos for download
+      const { data: allPhotos, error } = await supabase
+        .from("photos")
+        .select("id, name, image_url")
+        .eq("gallery_id", galleryId)
+        .order("created_at", { ascending: true });
+
+      if (error || !allPhotos) throw new Error("Failed to fetch photos");
+
+      const zip = new JSZip();
+      const folder = zip.folder(gallery.event_name || "gallery");
+
+      for (const photo of allPhotos) {
         const response = await fetch(getFullQualityUrl(photo.image_url));
         const blob = await response.blob();
         folder?.file(photo.name, blob);
@@ -570,9 +613,6 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
     );
   }
 
-  // Get visible photos for current page
-  const visiblePhotos = photos.slice(startIndex, endIndex);
-
   return (
     <div className="min-h-screen bg-[#fafaf9]">
       {/* IMMERSIVE HERO SECTION */}
@@ -616,7 +656,7 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
 
               {/* Photo Count */}
               <p className="text-xl md:text-2xl font-light text-white/70 tracking-wide">
-                {photos.length} {photos.length === 1 ? 'Memory' : 'Memories'} Captured
+                {totalPhotos} {totalPhotos === 1 ? 'Memory' : 'Memories'} Captured
               </p>
 
               {/* Action Buttons - Mobile Stack */}
@@ -662,7 +702,7 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
             {/* Left side - Photo count and status */}
             <div className="flex items-center justify-between sm:justify-start gap-3 sm:gap-5">
               <h2 className="text-lg sm:text-xl font-light text-[#1c1917]">
-                <span className="text-[#c67b5c] font-medium">{photos.length}</span> {photos.length === 1 ? 'Photo' : 'Photos'}
+                <span className="text-[#c67b5c] font-medium">{totalPhotos}</span> {totalPhotos === 1 ? 'Photo' : 'Photos'}
               </h2>
               <div className="flex items-center gap-2">
                 {selectionMode && (
@@ -762,108 +802,121 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
       </div>
 
 
-      {/* PREMIUM MASONRY GALLERY - Pixieset Style with Progressive Loading */}
+      {/* PREMIUM MASONRY GALLERY - OPTIMIZED with Progressive Loading */}
       <div className="max-w-[1800px] mx-auto px-6 md:px-12 py-16">
-        <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-5 space-y-5">
-          {visiblePhotos.map((photo, i) => {
-            const isSelected = selectedPhotos.has(photo.id);
-            const actualIndex = startIndex + i; // Get the actual index in the full photos array
+        {loadingPage ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center">
+              <div className="relative w-16 h-16 mx-auto mb-4">
+                <div className="absolute inset-0 border-4 border-[#e7e5e4] rounded-full" />
+                <div className="absolute inset-0 border-4 border-transparent border-t-[#c67b5c] rounded-full animate-spin" />
+              </div>
+              <p className="text-[#78716c] text-sm font-light">Loading photos...</p>
+            </div>
+          </div>
+        ) : (
+          <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-5 space-y-5">
+            {photos.map((photo, i) => {
+              const isSelected = selectedPhotos.has(photo.id);
 
-            return (
-              <div
-                key={photo.id}
-                className={`relative group break-inside-avoid cursor-pointer transition-all duration-500 ${imageLoaded[actualIndex] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-                  } ${isSelected && selectionMode ? 'ring-4 ring-[#c67b5c] ring-offset-4 rounded-xl' : ''}`}
-                onClick={() => {
-                  if (selectionMode) {
-                    togglePhotoSelection(photo.id);
-                  } else {
-                    openViewer(actualIndex, false);
-                  }
-                }}
-                style={{ transitionDelay: `${Math.min(i * 50, 500)}ms` }}
-              >
-                {/* Photo Container with Skeleton */}
-                <div className="relative overflow-hidden rounded-xl bg-[#e7e5e4] shadow-md hover:shadow-2xl transition-all duration-500">
-                  {/* Skeleton loader */}
-                  {!imageLoaded[actualIndex] && (
-                    <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-[#e7e5e4] via-[#d6d3d1] to-[#e7e5e4] bg-[length:200%_100%]" 
-                         style={{ animation: 'shimmer 1.5s infinite' }} />
-                  )}
-                  
-                  <Image
-                    src={getThumbnailUrl(photo.image_url)}
-                    alt={photo.name}
-                    width={800}
-                    height={600}
-                    className="w-full h-auto transition-transform duration-700 ease-out group-hover:scale-105"
-                    onLoad={() => setImageLoaded(prev => ({ ...prev, [actualIndex]: true }))}
-                    loading="lazy"
-                    quality={80}
-                  />
+              return (
+                <div
+                  key={photo.id}
+                  className={`relative group break-inside-avoid cursor-pointer transition-all duration-500 ${imageLoaded[i] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+                    } ${isSelected && selectionMode ? 'ring-4 ring-[#c67b5c] ring-offset-4 rounded-xl' : ''}`}
+                  onClick={() => {
+                    if (selectionMode) {
+                      togglePhotoSelection(photo.id);
+                    } else {
+                      openViewer(i, false);
+                    }
+                  }}
+                  style={{ transitionDelay: `${Math.min(i * 50, 500)}ms` }}
+                >
+                  {/* Photo Container with Skeleton */}
+                  <div className="relative overflow-hidden rounded-xl bg-[#e7e5e4] shadow-md hover:shadow-2xl transition-all duration-500">
+                    {/* Skeleton loader */}
+                    {!imageLoaded[i] && (
+                      <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-[#e7e5e4] via-[#d6d3d1] to-[#e7e5e4] bg-[length:200%_100%]" 
+                           style={{ animation: 'shimmer 1.5s infinite' }} />
+                    )}
+                    
+                    {/* OPTIMIZED: Smaller dimensions, responsive sizes, lower quality */}
+                    <Image
+                      src={getThumbnailUrl(photo.image_url)}
+                      alt={photo.name}
+                      width={400}
+                      height={400}
+                      className="w-full h-auto transition-transform duration-700 ease-out group-hover:scale-105"
+                      onLoad={() => setImageLoaded(prev => ({ ...prev, [i]: true }))}
+                      loading="lazy"
+                      quality={75}
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
+                    />
 
-                  {/* Hover Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300" />
+                    {/* Hover Overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300" />
 
-                  {/* Selection Checkbox */}
-                  {selectionMode && (
-                    <div className="absolute top-3 left-3 z-20">
-                      <div className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-all duration-200 ${isSelected
-                        ? 'bg-[#c67b5c] border-[#c67b5c] shadow-lg'
-                        : 'bg-white/90 border-white backdrop-blur-sm shadow-md'
-                        }`}>
-                        {isSelected && (
-                          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    {/* Selection Checkbox */}
+                    {selectionMode && (
+                      <div className="absolute top-3 left-3 z-20">
+                        <div className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-all duration-200 ${isSelected
+                          ? 'bg-[#c67b5c] border-[#c67b5c] shadow-lg'
+                          : 'bg-white/90 border-white backdrop-blur-sm shadow-md'
+                          }`}>
+                          {isSelected && (
+                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Download Button */}
+                    {!selectionMode && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          downloadPhoto(photo);
+                        }}
+                        disabled={downloadingId === photo.id}
+                        title={downloadingId === photo.id ? 'Preparing download...' : 'Download'}
+                        className={`absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300 bg-white/95 backdrop-blur-sm text-[#2d2a26] p-2.5 rounded-lg shadow-lg ${downloadingId === photo.id ? 'cursor-wait opacity-100 scale-100' : 'hover:bg-white hover:scale-110'}`}
+                      >
+                        {downloadingId === photo.id ? (
+                          <div className="w-5 h-5 relative">
+                            <div className="absolute inset-0 border-2 border-transparent border-t-[#c67b5c] rounded-full animate-spin" />
+                          </div>
+                        ) : (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                           </svg>
                         )}
-                      </div>
+                      </button>
+                    )} 
+
+                    {/* Photo Number - OPTIMIZED: Show position in current page */}
+                    <div className="absolute bottom-3 left-3 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                      <span className="text-white text-xs font-medium bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full">
+                        {(currentPage - 1) * photosPerPage + i + 1} / {totalPhotos}
+                      </span>
                     </div>
-                  )}
 
-                  {/* Download Button */}
-                  {!selectionMode && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        downloadPhoto(photo);
-                      }}
-                      disabled={downloadingId === photo.id}
-                      title={downloadingId === photo.id ? 'Preparing download...' : 'Download'}
-                      className={`absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300 bg-white/95 backdrop-blur-sm text-[#2d2a26] p-2.5 rounded-lg shadow-lg ${downloadingId === photo.id ? 'cursor-wait opacity-100 scale-100' : 'hover:bg-white hover:scale-110'}`}
-                    >
-                      {downloadingId === photo.id ? (
-                        <div className="w-5 h-5 relative">
-                          <div className="absolute inset-0 border-2 border-transparent border-t-[#c67b5c] rounded-full animate-spin" />
-                        </div>
-                      ) : (
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    {/* Expand Icon */}
+                    <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                      <div className="bg-black/60 backdrop-blur-sm p-2 rounded-full">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
                         </svg>
-                      )}
-                    </button>
-                  )} 
-
-                  {/* Photo Number */}
-                  <div className="absolute bottom-3 left-3 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                    <span className="text-white text-xs font-medium bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full">
-                      {actualIndex + 1} / {photos.length}
-                    </span>
-                  </div>
-
-                  {/* Expand Icon */}
-                  <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                    <div className="bg-black/60 backdrop-blur-sm p-2 rounded-full">
-                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-                      </svg>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Elegant Pagination Controls */}
         {totalPages > 1 && (
@@ -872,7 +925,7 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
             <div className="flex items-center gap-3 text-[#78716c] text-sm font-light">
               <div className="w-12 h-px bg-[#e7e5e4]" />
               <span>
-                Page {currentPage} of {totalPages} • Showing {startIndex + 1}-{Math.min(endIndex, photos.length)} of {photos.length}
+                Page {currentPage} of {totalPages} • Showing {(currentPage - 1) * photosPerPage + 1}-{Math.min(currentPage * photosPerPage, totalPhotos)} of {totalPhotos}
               </span>
               <div className="w-12 h-px bg-[#e7e5e4]" />
             </div>
@@ -1290,7 +1343,7 @@ ${invoice.notes ? `\nNotes:\n${invoice.notes}` : ''}
               <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
                 <div className="text-white space-y-2 flex-1">
                   <p className="text-xs sm:text-sm text-white/50 font-light tracking-wider uppercase">
-                    {activeIndex! + 1} of {photos.length}
+                    {(currentPage - 1) * photosPerPage + activeIndex! + 1} of {totalPhotos}
                   </p>
                   <p className="text-lg sm:text-2xl font-light truncate">{activePhoto.name}</p>
                   {zoomLevel > 1 && (
