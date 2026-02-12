@@ -11,12 +11,39 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-// 🚀 Public client (browser-safe) with proper auth config
+// 🚀 Public client (browser-safe) with proper auth config and network resilience
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: false, // Prevents the refresh token error
     storageKey: 'photo-delivery-auth',
+  },
+  global: {
+    headers: {
+      'x-client-info': 'photo-delivery-app'
+    },
+    fetch: (url, options = {}) => {
+      // Add request timeout of 15 seconds to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      
+      return fetch(url, {
+        ...options,
+        signal: controller.signal,
+      })
+        .then(response => {
+          clearTimeout(timeoutId);
+          return response;
+        })
+        .catch(error => {
+          clearTimeout(timeoutId);
+          // Check if it's a timeout
+          if (error.name === 'AbortError') {
+            throw new Error('Request timed out. Please check your internet connection and try again.');
+          }
+          throw error;
+        });
+    }
   }
 });

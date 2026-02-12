@@ -102,18 +102,29 @@ export default function ClientGalleryViewPage() {
       const start = (page - 1) * photosPerPage;
       const end = start + photosPerPage - 1;
 
-      const { data: photosData, error: photosError } = await supabase
-        .from("photos")
-        .select("id, name, image_url")
-        .eq("gallery_id", galleryId)
-        .order("created_at", { ascending: true })
-        .range(start, end);
+      // Create a timeout promise to prevent hanging
+      const timeoutPromise = new Promise<Photo[]>((_, reject) =>
+        setTimeout(() => reject(new Error("Photo loading timed out")), 12000)
+      );
 
-      if (photosError) throw new Error("Failed to load photos");
+      const photosPromise = (async () => {
+        const { data: photosData, error: photosError } = await supabase
+          .from("photos")
+          .select("id, name, image_url")
+          .eq("gallery_id", galleryId)
+          .order("created_at", { ascending: true })
+          .range(start, end);
 
-      setPhotos(photosData || []);
+        if (photosError) throw new Error("Failed to load photos");
+
+        return (photosData || []) as Photo[];
+      })();
+
+      const photosData = await Promise.race<Photo[]>([photosPromise, timeoutPromise]);
+      setPhotos(photosData);
       setImageLoaded({}); // Reset loaded state for new page
     } catch (err: any) {
+      console.error("Photos load error:", err);
       toast.error(err.message || "Failed to load photos");
     } finally {
       setLoadingPage(false);
@@ -123,38 +134,48 @@ export default function ClientGalleryViewPage() {
   /* OPTIMIZED: Load gallery + photo count (not all photos) + invoice */
   const loadGallery = async () => {
     try {
-      const { data: galleryData, error } = await supabase
-        .from("galleries")
-        .select("event_name, paid, event_date")
-        .eq("id", galleryId)
-        .maybeSingle();
+      // Set a timeout for the entire operation
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Request timed out. If this persists, please try clearing your browser cache or using a different browser.")), 15000)
+      );
 
-      if (error || !galleryData) throw new Error("Gallery not found");
+      const galleryPromise = (async () => {
+        const { data: galleryData, error } = await supabase
+          .from("galleries")
+          .select("event_name, paid, event_date")
+          .eq("id", galleryId)
+          .maybeSingle();
 
-      setGallery(galleryData);
+        if (error || !galleryData) throw new Error("Gallery not found");
 
-      // OPTIMIZED: Get total count without fetching all photos
-      const { count } = await supabase
-        .from("photos")
-        .select("*", { count: 'exact', head: true })
-        .eq("gallery_id", galleryId);
+        setGallery(galleryData);
 
-      setTotalPhotos(count || 0);
+        // OPTIMIZED: Get total count without fetching all photos
+        const { count } = await supabase
+          .from("photos")
+          .select("*", { count: 'exact', head: true })
+          .eq("gallery_id", galleryId);
 
-      // Load first page of photos
-      await loadPhotosPage(1);
+        setTotalPhotos(count || 0);
 
-      // Fetch invoice
-      const { data: invoiceData } = await supabase
-        .from("invoices")
-        .select("*")
-        .eq("gallery_id", galleryId)
-        .maybeSingle();
+        // Load first page of photos
+        await loadPhotosPage(1);
 
-      if (invoiceData) {
-        setInvoice(invoiceData);
-      }
+        // Fetch invoice
+        const { data: invoiceData } = await supabase
+          .from("invoices")
+          .select("*")
+          .eq("gallery_id", galleryId)
+          .maybeSingle();
+
+        if (invoiceData) {
+          setInvoice(invoiceData);
+        }
+      })();
+
+      await Promise.race([galleryPromise, timeoutPromise]);
     } catch (err: any) {
+      console.error("Gallery load error:", err);
       toast.error(err.message || "Failed to load gallery");
     } finally {
       setLoading(false);

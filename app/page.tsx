@@ -12,14 +12,29 @@ function FeaturedPortfolio() {
 
   useEffect(() => {
     const fetchFeatured = async () => {
-      const { data } = await supabase
-        .from("portfolio")
-        .select("*")
-        .eq("is_featured", true)
-        .order("display_order", { ascending: true })
-        .limit(9);
+      try {
+        // Set a timeout to prevent hanging
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Request timed out")), 12000)
+        );
 
-      setPhotos(data || []);
+        const photosPromise = (async () => {
+          const { data } = await supabase
+            .from("portfolio")
+            .select("*")
+            .eq("is_featured", true)
+            .order("display_order", { ascending: true })
+            .limit(9);
+
+          return data || [];
+        })();
+
+        const data = await Promise.race([photosPromise, timeoutPromise]);
+        setPhotos(data as any[]);
+      } catch (error) {
+        console.error("Failed to fetch featured photos:", error);
+        setPhotos([]);
+      }
     };
 
     fetchFeatured();
@@ -85,20 +100,30 @@ export default function HomePage() {
     setIsSubmitting(true)
 
     try {
-      const { error } = await supabase
-        .from("bookings")
-        .insert([{
-          name: bookingForm.name,
-          email: bookingForm.email,
-          phone: bookingForm.phone,
-          event_type: bookingForm.eventType,
-          event_date: bookingForm.eventDate,
-          message: bookingForm.message,
-          status: "pending",
-          created_at: new Date().toISOString()
-        }])
+      // Set timeout for booking submission
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Request timed out. Please check your connection and try again.")), 12000)
+      );
 
-      if (error) throw error
+      const bookingPromise = (async () => {
+        const { error } = await supabase
+          .from("bookings")
+          .insert([{
+            name: bookingForm.name,
+            email: bookingForm.email,
+            phone: bookingForm.phone,
+            event_type: bookingForm.eventType,
+            event_date: bookingForm.eventDate,
+            message: bookingForm.message,
+            status: "pending",
+            created_at: new Date().toISOString()
+          }])
+
+        if (error) throw error;
+        return true;
+      })();
+
+      await Promise.race([bookingPromise, timeoutPromise]);
 
       toast.success("Booking request sent! We'll get back to you soon.", {
         duration: 5000,
